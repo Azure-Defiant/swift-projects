@@ -20,12 +20,7 @@ struct StudentView: View {
             
             // History Tab
             NavigationView {
-                VStack {
-                    Text("History")
-                        .font(.largeTitle)
-                        .padding()
-                    // Add your history content here
-                }
+                historyView()
                 .navigationTitle("History")
             }
             .tabItem {
@@ -35,16 +30,14 @@ struct StudentView: View {
             
             // Profile Tab
             NavigationView {
-                VStack {
-                    Text("Profile")
-                        .font(.largeTitle)
-                        .padding()
-                    // Add your profile content here
-                }
-                .navigationTitle("Profile")
+                profileView()
+                 .navigationTitle("Profile")
+                
             }
+            
+            
             .tabItem {
-                Image(systemName: "person.crop.circle")
+                Image(systemName: "person.circle.fill")
                 Text("Profile")
             }
         }

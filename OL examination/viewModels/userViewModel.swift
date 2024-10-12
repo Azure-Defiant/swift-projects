@@ -21,7 +21,7 @@ final class AuthViewModel: ObservableObject {
         @Published var selectedRole: String?
     
         @Published var userRoleId: Int?
-       // @Published var navigateToRoleSelection: Bool = false // Ensure this is defined
+      
         @Published var navigateToSignUp: Bool = false
         @Published var shouldNavigateToDashboard: Bool = false
         @Published var selectedDashboard: String? = nil
@@ -29,13 +29,16 @@ final class AuthViewModel: ObservableObject {
     //navigate their roles into deisgnated dashboard
         @Published var navigateToTeacherDashboard: Bool = false
         @Published var navigateToStudentDashboard: Bool = false
+        @Published private var shouldHideBackButton = false
+
+    
+
     
     
-    // Reference to Supabase client
+    
     private let client = SupabaseManager.shared.client
     
     
-
     // Public function to update the user's role
     func updateUserRole(email: String, roleId: Int) async throws {
         let response = try await client
@@ -67,34 +70,52 @@ final class AuthViewModel: ObservableObject {
             }
         }
     }
-        
-        // Async function to handle sign-in
-        func signIn() {
-            Task {
-                do {
-                    let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
-                    print("Sign in successful: \(session)")
+    
+    
+    // Async function to handle sign-in
+    @MainActor
+    func signIn() {
+        Task {
+            do {
+                let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
+                print("Sign in successful: \(session)")
+
+                // Fetch the user role using the email
+                self.userRole = try await fetchUserRole(email: signInEmail)
+
+                DispatchQueue.main.async {
+                    self.error = nil
+                    self.isLoggedIn = true
+                    self.shouldHideBackButton = true
                     
-                    // Directly assign userId from session.user.id
-                    let userId = session.user.id
-                    
-                    // Fetch user role after successful sign-in
-                    self.userRole = try await fetchUserRole(userId: userId)
-                    
-                    DispatchQueue.main.async {
-                        self.error = nil
-                        self.isLoggedIn = true
-                        self.shouldNavigateToDashboard = true
+                    // Navigate based on user role
+                    if self.userRole == "Teacher" {
+                        self.navigateToTeacherDashboard = true
+                    } else if self.userRole == "Student" {
+                        self.navigateToStudentDashboard = true
+                    } else {
+                        print("Unknown role: \(self.userRole ?? "nil")")
                     }
-                } catch {
-                    DispatchQueue.main.async {
-                        self.error = error.localizedDescription
-                    }
+                    
+                    // Clear sign-in inputs
+                    self.signInEmail = ""
+                    self.signInPassword = ""
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.error = error.localizedDescription
                     print("Sign in failed: \(error.localizedDescription)")
                 }
             }
         }
+    }
         
+    struct UserInsert: Encodable {
+        let username: String
+        let email: String
+        let role_id: Int // Keep this as Int
+    }
+    
         // Async function to handle sign-up
     @MainActor
     func signUp(role: String, completion: @escaping (Bool) -> Void) {
@@ -115,24 +136,31 @@ final class AuthViewModel: ObservableObject {
                 }
 
                 // Insert user data
+                let newUser = UserInsert(username: signupUsername, email: signUpEmail, role_id: roleId)
+
+                // Insert user data using the struct
                 let response = try await client
                     .from("users")
-                    .insert([
-                        "username": signupUsername,
-                        "email": signUpEmail,
-                        "role_id": String(roleId)
-                    ])
+                    .insert(newUser)
                     .execute()
-
-                print("User   inserted successfully: \(response)")
+                
+                print("User inserted successfully: \(response)")
                 self.error = nil
 
+                self.shouldHideBackButton = true
+
+                
                 // Navigate based on the selected role
                 if role == "Teacher" {
                     navigateToTeacherDashboard = true
                 } else if role == "Student" {
                     navigateToStudentDashboard = true
                 }
+                
+                // Clear sign-up inputs
+                self.signupUsername = ""
+                self.signUpEmail = ""
+                self.signUpPassword = ""
                     
                 completion(true)
 
@@ -145,7 +173,7 @@ final class AuthViewModel: ObservableObject {
     }
     
     // Fetch user role from the database
-    func fetchUserRole(userId: UUID) async throws -> String? {
+    func fetchUserRole(email: String) async throws -> String? {
         struct UserResponse: Codable {
             let role_id: Int
         }
@@ -154,14 +182,13 @@ final class AuthViewModel: ObservableObject {
         let response = try await client
             .from("users")
             .select("role_id")
-            .eq("id", value: userId.uuidString)
-            .single() // This should fetch a single record based on the userId
+            .eq("email", value: email)
+            .single()
             .execute()
 
         // Check if the response contains data
-        // Assuming response.data is of type Data, you can check for an empty state
         if response.data.isEmpty {
-            print("No data found for user ID: \(userId)")
+            print("No data found for email: \(email)")
             return nil
         }
 
@@ -172,7 +199,7 @@ final class AuthViewModel: ObservableObject {
         switch userResponse.role_id {
             case 1:
                 return "Teacher"
-            case 2: // Assuming 2 is the ID for Student
+            case 2:
                 return "Student"
             default:
                 print("Unknown role ID: \(userResponse.role_id)")
@@ -218,7 +245,19 @@ extension AuthViewModel {
     }
 }
         
-        
+extension AuthViewModel {
+    func getRoleId(from role: String) -> Int? {
+        switch role {
+        case "Teacher":
+            return 1
+        case "Student":
+            return 2
+        default:
+            return nil // Handle unknown role if necessary
+        }
+    }
+    
+}
        
 
 

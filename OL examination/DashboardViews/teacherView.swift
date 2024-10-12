@@ -7,7 +7,7 @@ struct TeacherView: View {
             // Home Tab
             NavigationView {
                 HomeView() // Ensure HomeView is defined and returns a valid View
-                    .navigationTitle("Home") // Optional: Set a title for the Home view
+                    
             }
             .tabItem {
                 Image(systemName: "house.fill")
@@ -16,8 +16,8 @@ struct TeacherView: View {
             
             // Records Tab
             NavigationView {
-                RecordsView() // Ensure RecordsView is defined and returns a valid View
-                    .navigationTitle("Records") // Optional: Set a title for the Records view
+                RecordsView()
+
             }
             .tabItem {
                 Image(systemName: "doc.plaintext")
@@ -26,12 +26,7 @@ struct TeacherView: View {
             
             // History Tab
             NavigationView {
-                VStack {
-                    Text("History")
-                        .font(.largeTitle)
-                        .padding()
-                    // Add your history content here
-                }
+                HistoryView()
                 .navigationTitle("History") // Title in the navigation bar
             }
             .tabItem {
@@ -41,12 +36,7 @@ struct TeacherView: View {
             
             // Profile Tab
             NavigationView {
-                VStack {
-                    Text("Profile")
-                        .font(.largeTitle)
-                        .padding()
-                    // Add your profile content here
-                }
+                ProfileView()
                 .navigationTitle("Profile") // Title in the navigation bar
             }
             .tabItem {

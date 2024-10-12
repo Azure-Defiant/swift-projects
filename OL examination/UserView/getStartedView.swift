@@ -34,7 +34,7 @@ struct GetStartedView: View {
 
                     // Button to navigate to SignInView
                     Button("Sign In") {
-                        isNavigatingToSignInView = true // Trigger navigation to Sign In
+                        isNavigatingToSignInView = true
                     }
                     .foregroundColor(.white)
                     .frame(width: 200, height: 60)
@@ -45,12 +45,16 @@ struct GetStartedView: View {
                     Text("Choose your Role to Create an account")
                         .multilineTextAlignment(.center)
                         .padding(.top, -160)
-                        .frame(width: 300)
+              
+                        
+                        
+                        
+                    .frame(width: 300)
                         .font(.system(size: 14, weight: .semibold))
 
                     // Button to navigate to RoleView
                     Button("Choose Your Role") {
-                        isNavigatingToRoleView = true // Trigger navigation to RoleView
+                        isNavigatingToRoleView = true
                     }
                     .foregroundColor(.white)
                     .frame(width: 200, height: 60)

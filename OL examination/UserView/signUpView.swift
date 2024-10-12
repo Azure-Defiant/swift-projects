@@ -110,3 +110,15 @@ struct SignUpView: View {
         return AnyView(Text("No role selected"))
     }
 }
+
+#Preview {
+    // Mock AuthViewModel for preview purposes
+    let mockAuthViewModel = AuthViewModel()
+    mockAuthViewModel.signUpEmail = ""
+    mockAuthViewModel.signupUsername = ""
+    mockAuthViewModel.signUpPassword = ""
+    mockAuthViewModel.selectedRole = ""
+    
+    return SignUpView()
+        .environmentObject(mockAuthViewModel)
+}

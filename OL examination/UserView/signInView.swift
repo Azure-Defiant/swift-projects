@@ -2,10 +2,11 @@ import SwiftUI
 
 struct SignInView: View {
     @StateObject private var viewModel = AuthViewModel()
+    @State private var shouldHideBackButton = false
 
     var body: some View {
         ZStack {
-            Image("background") // Corrected the image name (removed parentheses)
+            Image("background")
                 .resizable()
                 .ignoresSafeArea()
                 .scaledToFill()
@@ -41,9 +42,7 @@ struct SignInView: View {
                     .padding(.top, -50)
                 
                 Button(action: {
-                   
                     viewModel.signIn()
-                
                 }) {
                     Text("Sign In")
                         .font(.custom("Poppins-Bold", size: 16))
@@ -61,9 +60,27 @@ struct SignInView: View {
                         .padding(.top, 10)
                 }
                 
-                NavigationLink(destination: RoleView(), isActive: $viewModel.shouldNavigateToRoleSelection) {
-                    EmptyView() // Navigation link to role view
+                // Navigation links for dashboards
+                NavigationLink(
+                    destination: TeacherView()
+                        .navigationBarBackButtonHidden(shouldHideBackButton), // Hide back button for Teacher dashboard
+                    isActive: $viewModel.navigateToTeacherDashboard
+                ) {
+                    EmptyView() // Navigation link to teacher dashboard
                 }
+
+                NavigationLink(
+                    destination: StudentView()
+                        .navigationBarBackButtonHidden(shouldHideBackButton), // Hide back button for Student dashboard
+                    isActive: $viewModel.navigateToStudentDashboard
+                ) {
+                    EmptyView() // Navigation link to student dashboard
+                }
+            }
+        }
+        .onChange(of: viewModel.isLoggedIn) { isLoggedIn in
+            if isLoggedIn {
+                shouldHideBackButton = true // Hide back button after successful sign-in
             }
         }
     }
