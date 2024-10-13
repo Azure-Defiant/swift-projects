@@ -2,11 +2,11 @@ import SwiftUI
 
 struct TeacherView: View {
     var body: some View {
-        // Main TabView for bottom navigation
+        
         TabView {
             // Home Tab
             NavigationView {
-                HomeView() // Ensure HomeView is defined and returns a valid View
+                HomeView()
                     
             }
             .tabItem {
@@ -27,7 +27,7 @@ struct TeacherView: View {
             // History Tab
             NavigationView {
                 HistoryView()
-                .navigationTitle("History") // Title in the navigation bar
+                .navigationTitle("History")
             }
             .tabItem {
                 Image(systemName: "clock.fill")
@@ -37,7 +37,7 @@ struct TeacherView: View {
             // Profile Tab
             NavigationView {
                 ProfileView()
-                .navigationTitle("Profile") // Title in the navigation bar
+                .navigationTitle("Profile")
             }
             .tabItem {
                 Image(systemName: "person.crop.circle")

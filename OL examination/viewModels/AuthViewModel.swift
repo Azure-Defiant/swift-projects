@@ -113,7 +113,7 @@ final class AuthViewModel: ObservableObject {
     struct UserInsert: Encodable {
         let username: String
         let email: String
-        let role_id: Int // Keep this as Int
+        let role_id: Int
     }
     
         // Async function to handle sign-up
@@ -207,8 +207,7 @@ final class AuthViewModel: ObservableObject {
         }
     }
     
-    // Additional user management functions (create, update, delete)
-    // ...
+   
 }
   
 
