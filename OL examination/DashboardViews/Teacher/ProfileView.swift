@@ -1,9 +1,3 @@
-//
-//  profileView.swift
-//  OL examination
-//
-//  Created by Sherwin Josh A. Aquino on 10/2/24.
-//
 import SwiftUI
 
 struct ProfileView: View {
@@ -25,30 +19,9 @@ struct ProfileView: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 16)
-                
-                Text("josh.smith@example.com")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .padding(.bottom, 30)
-                
-                
+
                 HStack(spacing: 40) {
                     Button(action: {
-                        
-                        print("Edit Profile tapped")
-                    }) {
-                        VStack {
-                            Image(systemName: "pencil")
-                                .font(.title)
-                                .foregroundColor(.blue)
-                            Text("Edit")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    Button(action: {
-                        
                         print("Logout tapped")
                     }) {
                         VStack {
@@ -63,14 +36,6 @@ struct ProfileView: View {
                 }
                 .padding(.top, 20)
                 
-                
-                NavigationLink(destination: aboutusview()) {
-                    Text("About Us")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                        .padding(.top, 20)
-                }
-                
                 // Dark Mode Toggle
                 Toggle(isOn: $isDarkMode) {
                     Text("Dark Mode")
@@ -80,8 +45,20 @@ struct ProfileView: View {
                 .onChange(of: isDarkMode) { value in
                     toggleDarkMode()
                 }
+
+                // Spacer for more space before the About Us link
+                Spacer().frame(height: 40) // Add space between the toggle and the About Us link
                 
-                Spacer()
+                // About Us Navigation Link
+                NavigationLink(destination: aboutusview()) {
+                    Text("About Us")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                        .padding(.leading, 20) // Adjusted padding to move the link to the left
+                }
+                .frame(maxWidth: .infinity, alignment: .leading) // Align to the left
+                
+                Spacer() // Add another spacer to push content to the top
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
@@ -93,8 +70,7 @@ struct ProfileView: View {
     
     // Function to toggle dark/light mode
     private func toggleDarkMode() {
-        // No need to override the interface style manually in iOS 15; SwiftUI manages it.
-        // We just use the .preferredColorScheme() modifier in the view.
+        // SwiftUI manages the dark/light mode.
     }
 }
 
@@ -113,7 +89,7 @@ struct aboutusview: View {
             
             Spacer()
         }
-        .navigationTitle("About Us")
+    
     }
 }
 

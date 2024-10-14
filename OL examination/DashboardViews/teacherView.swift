@@ -2,46 +2,35 @@ import SwiftUI
 
 struct TeacherView: View {
     var body: some View {
-        
-        TabView {
-            // Home Tab
-            NavigationView {
+        NavigationView { // Wrap the entire TabView in one NavigationView
+            TabView {
+                // Home Tab
                 HomeView()
-                    
-            }
-            .tabItem {
-                Image(systemName: "house.fill")
-                Text("Home")
-            }
-            
-            // Records Tab
-            NavigationView {
+                    .tabItem {
+                        Image(systemName: "house.fill")
+                        Text("Home")
+                    }
+                
+                // Records Tab
                 RecordsView()
-
-            }
-            .tabItem {
-                Image(systemName: "doc.plaintext")
-                Text("Records")
-            }
-            
-            // History Tab
-            NavigationView {
+                    .tabItem {
+                        Image(systemName: "doc.plaintext")
+                        Text("Records")
+                    }
+                
+                // History Tab
                 HistoryView()
-                .navigationTitle("History")
-            }
-            .tabItem {
-                Image(systemName: "clock.fill")
-                Text("History")
-            }
-            
-            // Profile Tab
-            NavigationView {
+                    .tabItem {
+                        Image(systemName: "clock.fill")
+                        Text("History")
+                    }
+                
+                // Profile Tab
                 ProfileView()
-                .navigationTitle("Profile")
-            }
-            .tabItem {
-                Image(systemName: "person.crop.circle")
-                Text("Profile")
+                    .tabItem {
+                        Image(systemName: "person.crop.circle")
+                        Text("Profile")
+                    }
             }
         }
     }
@@ -50,5 +39,3 @@ struct TeacherView: View {
 #Preview {
     TeacherView()
 }
-
-

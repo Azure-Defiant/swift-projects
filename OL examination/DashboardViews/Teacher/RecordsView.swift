@@ -1,6 +1,7 @@
 import SwiftUI
 import Supabase
 
+// Model for Exam Submission Data
 struct ExamSubmission: Identifiable, Codable {
     let id: Int64
     let username: String
@@ -10,17 +11,18 @@ struct ExamSubmission: Identifiable, Codable {
     let status: String
 }
 
+// View Model to fetch and manage submissions
 class RecordsViewModel: ObservableObject {
     @Published var submissions: [ExamSubmission] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+
     private let client = SupabaseManager.shared.client
-    
+
     func fetchSubmissions() {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let response = try await client
@@ -35,13 +37,13 @@ class RecordsViewModel: ObservableObject {
                     """)
                     .order("submission_date", ascending: false)
                     .execute()
-                
+
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 decoder.dateDecodingStrategy = .iso8601
-                
+
                 let decodedSubmissions = try decoder.decode([ExamSubmission].self, from: response.data)
-                
+
                 DispatchQueue.main.async {
                     self.submissions = decodedSubmissions
                     self.isLoading = false
@@ -56,64 +58,79 @@ class RecordsViewModel: ObservableObject {
     }
 }
 
+// Main View for Displaying Records
 struct RecordsView: View {
     @StateObject private var viewModel = RecordsViewModel()
     @State private var searchText = ""
     @State private var statusFilter: String?
     @State private var sortOrder: SortOrder = .descending
-    
+
     var filteredSubmissions: [ExamSubmission] {
         viewModel.submissions.filter { submission in
             (searchText.isEmpty || submission.username.localizedCaseInsensitiveContains(searchText)) &&
             (statusFilter == nil || submission.status == statusFilter)
-        }.sorted {
+        }
+        .sorted {
             sortOrder == .ascending ? $0.submissionDate < $1.submissionDate : $0.submissionDate > $1.submissionDate
         }
     }
-    
+
     var body: some View {
         NavigationView {
-            VStack {
-                if viewModel.isLoading {
-                    ProgressView("Loading submissions...")
-                } else if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                } else {
-                    List(filteredSubmissions) { submission in
-                        SubmissionRow(submission: submission)
+            ZStack {
+                Color(.systemBackground)
+                    .edgesIgnoringSafeArea(.all)
+
+                VStack(spacing: 16) {
+                    // Search Bar at the top, with padding adjusted to stay at the top
+                    SearchBar(text: $searchText)
+                        .padding([.horizontal, .top], 16)
+
+                    // Filter and Sort options
+                    HStack {
+                        FilterPicker(statusFilter: $statusFilter)
+                        SortPicker(sortOrder: $sortOrder)
                     }
-                    .searchable(text: $searchText, prompt: "Search by username")
+                    .padding(.horizontal)
+
+                    // Content in ScrollView
+                    ScrollView {
+                        if viewModel.isLoading {
+                            ProgressView("Loading submissions...")
+                                .padding(.top, 50)
+                        } else if let errorMessage = viewModel.errorMessage {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 50)
+                        } else if filteredSubmissions.isEmpty {
+                            Text("No submissions found.")
+                                .foregroundColor(.gray)
+                                .padding(.top, 50)
+                        } else {
+                            VStack(spacing: 16) {
+                                ForEach(filteredSubmissions) { submission in
+                                    SubmissionRow(submission: submission)
+                                        .padding(.horizontal)
+                                }
+                            }
+                            .padding(.top, 16)
+                        }
+                    }
+                    .onAppear {
+                        viewModel.fetchSubmissions()
+                    }
                 }
             }
-            .navigationTitle("Exam Submissions")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Picker("Filter", selection: $statusFilter) {
-                            Text("All").tag(nil as String?)
-                            Text("Pass").tag("pass" as String?)
-                            Text("Fail").tag("fail" as String?)
-                        }
-                        Picker("Sort", selection: $sortOrder) {
-                            Text("Newest First").tag(SortOrder.descending)
-                            Text("Oldest First").tag(SortOrder.ascending)
-                        }
-                    } label: {
-                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-                    }
-                }
-            }
-        }
-        .onAppear {
-            viewModel.fetchSubmissions()
+            .navigationBarTitle("Records", displayMode: .inline)
         }
     }
 }
 
+// Row to display individual submission details
 struct SubmissionRow: View {
     let submission: ExamSubmission
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(submission.username)
@@ -126,8 +143,12 @@ struct SubmissionRow: View {
             Text("Submitted: \(formattedDate(submission.submissionDate))")
                 .font(.caption)
         }
+        .padding()
+        .background(Color(.systemGray5))
+        .cornerRadius(10)
+        .shadow(radius: 2)
     }
-    
+
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -136,10 +157,59 @@ struct SubmissionRow: View {
     }
 }
 
+// Search Bar
+struct SearchBar: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack {
+            TextField("Search by username", text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding(8)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .shadow(radius: 2)
+        }
+    }
+}
+
+// Filter Picker
+struct FilterPicker: View {
+    @Binding var statusFilter: String?
+
+    var body: some View {
+        Picker("Filter", selection: $statusFilter) {
+            Text("All").tag(String?.none)
+            Text("Pass").tag(String?.some("pass"))
+            Text("Fail").tag(String?.some("fail"))
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// Sort Picker
+struct SortPicker: View {
+    @Binding var sortOrder: SortOrder
+
+    var body: some View {
+        Picker("Sort by Date", selection: $sortOrder) {
+            Text("Newest").tag(SortOrder.descending)
+            Text("Oldest").tag(SortOrder.ascending)
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// Enum for Sort Order
 enum SortOrder {
     case ascending, descending
 }
 
-#Preview {
-    RecordsView()
+// Preview
+struct RecordsView_Previews: PreviewProvider {
+    static var previews: some View {
+        RecordsView()
+    }
 }

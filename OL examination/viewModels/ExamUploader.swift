@@ -34,12 +34,14 @@ struct QuestionInsert: Codable {
     let question_type: String
     let exam_id: Int64
     let created_by: Int64
+    let correct_answer: String?
 }
 
 struct AnswerInsert: Codable {
     let question_id: Int64
     let answer_option: String
     let is_correct: Bool
+   // let correct_answer : String
 }
 
 // Upload Exam function
@@ -72,8 +74,9 @@ func uploadExamToSupabase(
             let questionInsert = QuestionInsert(
                 question_text: questionText,
                 question_type: questionType,
-                exam_id: examId, // Use the decoded examId
-                created_by: userId
+                exam_id: examId,
+                created_by: userId,
+                correct_answer: correctAnswer
             )
 
             let questionResponse = try await supabaseClient
@@ -90,20 +93,39 @@ func uploadExamToSupabase(
             // Step 3: If the question is multiple choice, insert the answers into 'exam_answers'
             if questionType == "multiple-choice" {
                 for (index, option) in options.enumerated() {
-                    let isCorrect = (correctAnswer.lowercased() == "\(Character(UnicodeScalar(97 + index)!))")
+                    // Adjust the logic for determining if an answer is correct
+                    let isCorrect = (correctAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == String(Character(UnicodeScalar(97 + index)!))) // Compare with 'a', 'b', 'c', or 'd'
 
                     let answerInsert = AnswerInsert(
-                        question_id: questionId, // Use the decoded questionId
+                        question_id: questionId,
                         answer_option: option,
                         is_correct: isCorrect
                     )
 
-                    // Insert answers into 'exam_answers'
+                    // Insert answers into exam_answers table
                     _ = try await supabaseClient
                         .from("exam_answers")
                         .insert(answerInsert)
-                        .execute() // You can remove select() and single() if not needed
+                        .execute()
+
+                    // Log to check if the answer was inserted correctly
+                    print("Inserted answer: \(option), is_correct: \(isCorrect)")
                 }
+            } else if questionType == "identification" {
+                // For identification questions, insert the correct answer as a single answer.
+                let answerInsert = AnswerInsert(
+                    question_id: questionId,
+                    answer_option: correctAnswer,
+                    is_correct: true
+                )
+
+                _ = try await supabaseClient
+                    .from("exam_answers")
+                    .insert(answerInsert)
+                    .execute()
+
+                // Log to check if the answer was inserted correctly
+                print("Inserted identification answer: \(correctAnswer), is_correct: true")
             }
         }
 

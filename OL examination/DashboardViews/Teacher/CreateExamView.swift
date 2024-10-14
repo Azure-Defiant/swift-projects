@@ -6,15 +6,12 @@ struct CreateExamView: View {
     @State private var examTitle: String = ""
     @State private var questionText: String = ""
     @State private var questionType: String = "multiple-choice"
-    @State private var options: [String] = ["", "", "", ""]
+    @State private var options: [String] = Array(repeating: "", count: 4)
     @State private var correctAnswer: String = ""
     @State private var questions: [(String, String, [String], String)] = []
-
-    // Alert state
     @State private var showAlert = false
     @State private var alertMessage = ""
 
-    // Supabase client instance
     let supabaseClient = createSupabaseClient()
 
     var body: some View {
@@ -23,65 +20,46 @@ struct CreateExamView: View {
                 .font(.largeTitle)
                 .padding(.bottom, 20)
 
-            // Exam Title Input
             TextField("Enter exam title", text: $examTitle)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.bottom, 20)
-                .onTapGesture {
-                    dismissKeyboard()
-                }
+                .onTapGesture { dismissKeyboard() }
 
-            // Question Input
             TextField("Enter question", text: $questionText)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.bottom, 10)
-                .onTapGesture {
-                    dismissKeyboard()
-                }
+                .onTapGesture { dismissKeyboard() }
 
-            // Question Type Picker
             Picker("Question Type", selection: $questionType) {
                 Text("Multiple Choice").tag("multiple-choice")
                 Text("Identification").tag("identification")
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding(.bottom, 20)
-            .onChange(of: questionType) { _ in
-                dismissKeyboard() // Dismiss keyboard when question type changes
-            }
+            .onChange(of: questionType) { _ in dismissKeyboard() }
 
-            // Multiple Choice Options (Only show if question type is multiple choice)
             if questionType == "multiple-choice" {
-                ForEach(0..<4) { index in
-                    TextField("Option \(Character(UnicodeScalar(97 + index)!)).", text: $options[index]) // Display as a, b, c, d
+                ForEach(0..<4, id: \.self) { index in
+                    TextField("Option \(Character(UnicodeScalar(97 + index)!)).", text: $options[index])
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding(.bottom, 5)
-                        .onTapGesture {
-                            dismissKeyboard()
-                        }
+                        .onTapGesture { dismissKeyboard() }
                 }
-                // Input for correct answer
-                TextField("Correct answer (a, b, c, or d)", text: $correctAnswer)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.bottom, 10)
-                    .onTapGesture {
-                        dismissKeyboard()
-                    }
             }
 
-            // Button to Add Question
-            Button(action: {
-                addQuestion()
-            }) {
-                Text("Add Question")
-                    .padding()
-                    .background(Color.black)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
-            .padding(.bottom, 20)
+            TextField("Correct answer \(questionType == "multiple-choice" ? "(a, b, c, or d)" : "")", text: $correctAnswer)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .textInputAutocapitalization(.never)
+                .padding(.bottom, 10)
+                .onTapGesture { dismissKeyboard() }
 
-            // Display Added Questions
+            Button("Add Question") { addQuestion() }
+                .padding()
+                .background(Color.gray)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding(.bottom, 20)
+
             List {
                 ForEach(questions, id: \.0) { question in
                     VStack(alignment: .leading) {
@@ -101,18 +79,11 @@ struct CreateExamView: View {
                 }
             }
 
-            // Submit Button
-            Button(action: {
-                Task {
-                    await uploadExam()
-                }
-            }) {
-                Text("Upload Exam")
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
+            Button("Upload Exam") { Task { await uploadExam() } }
+                .padding()
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(10)
 
             Spacer()
         }
@@ -123,93 +94,94 @@ struct CreateExamView: View {
         }
     }
 
-    // Clear the input fields after adding a question
     private func clearQuestionFields() {
         questionText = ""
-        options = ["", "", "", ""]
+        options = Array(repeating: "", count: 4)
         correctAnswer = ""
     }
 
-    // Function to add question
     private func addQuestion() {
         dismissKeyboard()
 
-        if questionText.isEmpty {
+        guard !questionText.isEmpty else {
             alertMessage = "Please enter a question."
             showAlert = true
             return
         }
 
         if questionType == "multiple-choice" {
-            // Check for empty options and correct answer
-            if options.contains(where: { $0.isEmpty }) {
+            guard !options.contains(where: { $0.isEmpty }) else {
                 alertMessage = "Please fill in all the options."
                 showAlert = true
                 return
             }
 
-            if correctAnswer.isEmpty || !"abcd".contains(correctAnswer.lowercased()) {
+            guard !correctAnswer.isEmpty, "abcd".contains(correctAnswer.lowercased()) else {
                 alertMessage = "Please enter a valid correct answer (a, b, c, or d)."
+                showAlert = true
+                return
+            }
+        } else if questionType == "identification" {
+            guard !correctAnswer.isEmpty else {
+                alertMessage = "Please enter the correct answer for the identification question."
                 showAlert = true
                 return
             }
         }
 
-        // Add the question to the list
         let newQuestion = (questionText, questionType, options, correctAnswer)
         questions.append(newQuestion)
         clearQuestionFields()
     }
 
-    // Function to handle uploading the exam
     private func uploadExam() async {
         dismissKeyboard()
 
-        if examTitle.isEmpty {
+        guard !examTitle.isEmpty else {
             alertMessage = "Please enter an exam title."
             showAlert = true
             return
         }
 
-        if questions.isEmpty {
+        guard !questions.isEmpty else {
             alertMessage = "Please add at least one question."
             showAlert = true
             return
         }
 
-        // Get authenticated user's email and fetch their userId (Int64)
         guard let email = supabaseClient.auth.currentUser?.email else {
             alertMessage = "You must be logged in to create an exam."
             showAlert = true
             return
         }
 
-        guard let authenticatedUserID = try? await fetchUserId(byEmail: email) else {
-            alertMessage = "Failed to fetch user ID."
-            showAlert = true
-            return
-        }
-
-        print("Uploading exam with userId: \(authenticatedUserID)")
-
-        // Upload exam and questions to backend (Supabase)
-        await uploadExamToSupabase(
-            title: examTitle,
-            questions: questions,
-            userId: authenticatedUserID // Now an Int64
-        ) { success, error in
-            if success {
-                // Dismiss view on success
-                dismiss()
-            } else if let error = error {
-               
-                alertMessage = "Error uploading exam: \(error.localizedDescription)"
+        do {
+            guard let authenticatedUserID = try await fetchUserId(byEmail: email) else {
+                alertMessage = "Failed to fetch user ID."
                 showAlert = true
+                return
             }
+
+            print("Uploading exam with userId: \(authenticatedUserID)")
+
+            await uploadExamToSupabase(
+                title: examTitle,
+                questions: questions,
+                userId: authenticatedUserID
+            ) { success, error in
+                if success {
+                    dismiss()
+                } else if let error = error {
+                    alertMessage = "Error uploading exam: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        } catch {
+            alertMessage = "Error uploading exam: \(error.localizedDescription)"
+            showAlert = true
         }
     }
 
-    // Fetch userId (Int64) from Supabase based on email
     private func fetchUserId(byEmail email: String) async throws -> Int64? {
         struct UserResponse: Codable {
             let id: Int64
@@ -222,8 +194,7 @@ struct CreateExamView: View {
                 .eq("email", value: email)
                 .single()
                 .execute()
-            
-            // Explicitly check if the data is non-empty
+
             if !response.data.isEmpty {
                 let userData = try JSONDecoder().decode(UserResponse.self, from: response.data)
                 return userData.id
@@ -237,7 +208,6 @@ struct CreateExamView: View {
         }
     }
 
-    // Function to dismiss the keyboard
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }

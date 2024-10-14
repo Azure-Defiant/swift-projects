@@ -11,7 +11,7 @@ struct HomeView: View {
                     Image(systemName: "person.circle.fill")
                         .resizable()
                         .frame(width: 80, height: 80)
-                        .foregroundColor(.black)
+                        .foregroundColor(.gray)
                     
                     VStack(alignment: .leading) {
                         Text("Welcome, \(userName)!")
@@ -39,7 +39,7 @@ struct HomeView: View {
                     Text("Start New Form")
                         .font(.title2)
                         .padding()
-                        .background(Color.black)
+                        .background(Color.gray)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
