@@ -83,7 +83,7 @@ struct aboutusview: View {
                 .fontWeight(.bold)
                 .padding(.top, 100)
             
-            Text("This is the About Us page. Here you can add information about your app or company.")
+            Text("We Build this Proctorly app to make exam easy through online and for the best online examination")
                 .multilineTextAlignment(.center)
                 .padding()
             
@@ -96,3 +96,5 @@ struct aboutusview: View {
 #Preview {
     ProfileView()
 }
+
+

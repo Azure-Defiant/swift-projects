@@ -3,7 +3,7 @@ import Foundation
 import Combine
 
 final class AuthViewModel: ObservableObject {
-    // Properties for sign-in
+        // Properties for sign-in
         @Published var signInEmail: String = ""
         @Published var signInPassword: String = ""
         @Published var currentUserEmail: String = ""
@@ -26,7 +26,8 @@ final class AuthViewModel: ObservableObject {
         @Published var shouldNavigateToDashboard: Bool = false
         @Published var selectedDashboard: String? = nil
         @Published var shouldNavigateToRoleSelection: Bool = false
-    //navigate their roles into deisgnated dashboard
+    
+        //navigate their roles into deisgnated dashboard
         @Published var navigateToTeacherDashboard: Bool = false
         @Published var navigateToStudentDashboard: Bool = false
         @Published private var shouldHideBackButton = false
@@ -171,6 +172,32 @@ final class AuthViewModel: ObservableObject {
             }
         }
     }
+    
+    
+    @MainActor
+    func signOut() {
+        Task {
+            do {
+                try await client.auth.signOut()
+                print("Sign out successful")
+                
+                // Reset session-related properties
+                self.isLoggedIn = false
+                self.userRole = nil
+                self.currentUserEmail = ""
+                self.shouldNavigateToDashboard = false
+                self.navigateToTeacherDashboard = false
+                self.navigateToStudentDashboard = false
+                self.shouldNavigateToRoleSelection = false
+                self.selectedRole = nil
+                
+                // Optionally, clear any other session-related data or views
+            } catch {
+                print("Sign out failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     
     // Fetch user role from the database
     func fetchUserRole(email: String) async throws -> String? {

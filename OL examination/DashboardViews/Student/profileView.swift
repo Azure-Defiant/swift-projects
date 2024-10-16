@@ -1,14 +1,11 @@
-//
-//  profileView.swift
-//  OL examination
-//
-//  Created by Sherwin Josh A. Aquino on 10/2/24.
-//
 import SwiftUI
 
 struct profileView: View {
     @Environment(\.colorScheme) var colorScheme // Access the current color scheme (light/dark)
     @AppStorage("isDarkMode") private var isDarkMode = false // Store user's dark mode preference
+    
+    // Inject AuthViewModel into the view
+    @StateObject private var authViewModel = AuthViewModel()
     
     var body: some View {
         NavigationView {
@@ -21,20 +18,18 @@ struct profileView: View {
                     .padding(.top, 150)
                 
                 // User Info
-                Text("Josh Smith")
+                Text("Josh Smith") // Replace with dynamic user data if available
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 16)
                 
-                Text("josh.smith@example.com")
+                Text("josh.smith@example.com") // Replace with dynamic user email
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .padding(.bottom, 30)
                 
-                
                 HStack(spacing: 40) {
                     Button(action: {
-                        
                         print("Edit Profile tapped")
                     }) {
                         VStack {
@@ -48,8 +43,7 @@ struct profileView: View {
                     }
                     
                     Button(action: {
-                        
-                        print("Logout tapped")
+                        authViewModel.signOut() // Call the sign-out function from AuthViewModel
                     }) {
                         VStack {
                             Image(systemName: "power")
@@ -62,7 +56,6 @@ struct profileView: View {
                     }
                 }
                 .padding(.top, 20)
-                
                 
                 NavigationLink(destination: AboutUsView()) {
                     Text("About Us")
@@ -93,8 +86,7 @@ struct profileView: View {
     
     // Function to toggle dark/light mode
     private func toggleDarkMode() {
-        // No need to override the interface style manually in iOS 15; SwiftUI manages it.
-        // We just use the .preferredColorScheme() modifier in the view.
+        // SwiftUI handles this with the .preferredColorScheme() modifier
     }
 }
 
@@ -117,6 +109,7 @@ struct AboutUsView: View {
     }
 }
 
+// Preview
 #Preview {
-    profileView()
+    ProfileView()
 }
