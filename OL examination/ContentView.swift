@@ -16,15 +16,23 @@ struct Role: Codable {
     
 }
 
+import SwiftUI
+
 struct ContentView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationView {
+            if authViewModel.isLoggedIn {
+                if authViewModel.userRole == "Teacher" {
+                    StudentView()
+                } else if authViewModel.userRole == "Student" {
+                    TeacherView()
+                }
+            } else if authViewModel.shouldNavigateToRoleSelection {
+                RoleView()
+            }
         }
-        .padding()
     }
 }
 

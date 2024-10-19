@@ -67,20 +67,21 @@ struct homeView: View {
                     .select("*")
                     .execute()
 
-                // Use the data directly (since it's not optional)
-                let data = response.data // Assuming this is of type Data
+            
+                let data = response.data
 
-                // Print raw data for debugging
+                
                 if let jsonData = String(data: data, encoding: .utf8) {
                     print("Raw JSON data: \(jsonData)")
                 }
 
-                // Decode the data into an array of Exam objects
+                
                 let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase // For snake_case to camelCase conversion
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                
                 let decodedExams = try decoder.decode([Exam].self, from: data)
 
-                // Assign the decoded exams to your state variable
+                
                 self.exams = decodedExams
                 
             } catch {

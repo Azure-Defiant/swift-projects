@@ -42,16 +42,16 @@
 		84F7292A2CAD6EC6001A8475 /* Exceptions for "OL examination" folder in "OL examinationTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"resources/Fonts/Poppins-Black.ttf",
-				"resources/Fonts/Poppins-Regular.ttf",
+				"DashboardViews/resources/Fonts/Poppins-Black.ttf",
+				"DashboardViews/resources/Fonts/Poppins-Regular.ttf",
 			);
 			target = 84F728BE2CAD57D8001A8475 /* OL examinationTests */;
 		};
 		84F7292B2CAD6EC6001A8475 /* Exceptions for "OL examination" folder in "OL examinationUITests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"resources/Fonts/Poppins-Black.ttf",
-				"resources/Fonts/Poppins-Regular.ttf",
+				"DashboardViews/resources/Fonts/Poppins-Black.ttf",
+				"DashboardViews/resources/Fonts/Poppins-Regular.ttf",
 			);
 			target = 84F728C82CAD57D8001A8475 /* OL examinationUITests */;
 		};
@@ -448,6 +448,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"OL examination/Preview Content\"";
@@ -478,6 +479,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"OL examination/Preview Content\"";

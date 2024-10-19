@@ -9,12 +9,12 @@ import SwiftUI
 
 @main
 struct Proctorly: App {
-    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject  var authViewModel = AuthViewModel()
     
     var body: some Scene {
         WindowGroup {
             GetStartedView()
-                .environmentObject(authViewModel) // Injecting AuthViewModel here
+                .environmentObject(authViewModel) // injected the authviewmodel :)
         }
     }
 }

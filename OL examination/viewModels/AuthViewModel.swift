@@ -31,7 +31,7 @@ final class AuthViewModel: ObservableObject {
         @Published var navigateToTeacherDashboard: Bool = false
         @Published var navigateToStudentDashboard: Bool = false
         @Published private var shouldHideBackButton = false
-
+        
     
 
     
@@ -39,6 +39,33 @@ final class AuthViewModel: ObservableObject {
     
     private let client = SupabaseManager.shared.client
     
+    
+    // Struct to handle response from users table
+    struct MappedUserResponse: Codable {
+            let uuid: String
+            let int_id: Int64
+    }
+    // struct for inserting users into user's table
+    struct userInsert: Encodable{
+        let username: String
+        let email: String
+        let role_id: Int
+        
+    }
+    
+    
+    // Insert UUID and BIGINT mapping into `user_mapping` table
+    func insertUserMapping(uuid: String, bigIntId: Int64) async throws {
+        let mappingInsert = MappedUserResponse(uuid: uuid, int_id: bigIntId)
+
+        let response = try await client
+            .from("user_mapping")
+            .insert(mappingInsert)
+            .execute()
+
+        print("Mapping inserted successfully: \(response)")
+    }
+
     
     // Public function to update the user's role
     func updateUserRole(email: String, roleId: Int) async throws {
@@ -81,26 +108,30 @@ final class AuthViewModel: ObservableObject {
                 let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
                 print("Sign in successful: \(session)")
 
-                // Fetch the user role using the email
-                self.userRole = try await fetchUserRole(email: signInEmail)
+                guard let userRole = try await fetchUserRole(email: signInEmail) else {
+                    DispatchQueue.main.async {
+                        self.error = "No role found for this user or unauthorized access."
+                        self.isLoggedIn = false
+                    }
+                    return
+                }
 
                 DispatchQueue.main.async {
-                    self.error = nil
                     self.isLoggedIn = true
-                    self.shouldHideBackButton = true
-                    
-                    // Navigate based on user role
-                    if self.userRole == "Teacher" {
+                    // Safely unwrap email using nil coalescing
+                    self.currentUserEmail = session.user.email ?? "No email available"
+                    self.userRole = userRole
+
+                    switch userRole {
+                    case "Teacher":
                         self.navigateToTeacherDashboard = true
-                    } else if self.userRole == "Student" {
+                    case "Student":
                         self.navigateToStudentDashboard = true
-                    } else {
-                        print("Unknown role: \(self.userRole ?? "nil")")
+                    default:
+                        self.error = "Unknown or unauthorized role"
+                        self.isLoggedIn = false
+                        print("Unknown role: \(userRole)")
                     }
-                    
-                    // Clear sign-in inputs
-                    self.signInEmail = ""
-                    self.signInPassword = ""
                 }
             } catch {
                 DispatchQueue.main.async {
@@ -110,24 +141,26 @@ final class AuthViewModel: ObservableObject {
             }
         }
     }
-        
+
     struct UserInsert: Encodable {
         let username: String
         let email: String
         let role_id: Int
     }
     
-        // Async function to handle sign-up
     @MainActor
     func signUp(role: String, completion: @escaping (Bool) -> Void) {
         print("Selected role before signup: \(role)")
         Task {
             do {
-                // Sign up the user
+                // Sign up the user via Supabase Auth and retrieve the UUID
                 let session = try await client.auth.signUp(email: signUpEmail, password: signUpPassword)
                 print("Sign up successful: \(session)")
-                
-                // Fetch the role
+
+                let userId = session.user.id.uuidString  // Convert UUID to string immediately after fetching
+                print("User UUID: \(userId)")
+
+                // Fetch the role from the roles table
                 try await fetchRole(by: role)
 
                 guard let roleId = userRoleId else {
@@ -136,35 +169,36 @@ final class AuthViewModel: ObservableObject {
                     return
                 }
 
-                // Insert user data
+                // Insert user into the `users` table (BIGINT ID)
                 let newUser = UserInsert(username: signupUsername, email: signUpEmail, role_id: roleId)
-
-                // Insert user data using the struct
-                let response = try await client
+                let userResponse = try await client
                     .from("users")
                     .insert(newUser)
+                    .select("id") // Get the BIGINT id
+                    .single()
                     .execute()
-                
-                print("User inserted successfully: \(response)")
-                self.error = nil
 
-                self.shouldHideBackButton = true
+                // Decode the response to get the BIGINT user ID
+                let userData = try JSONDecoder().decode(MappedUserResponse.self, from: userResponse.data)
+                let bigIntId = userData.int_id
+                print("User inserted successfully with BIGINT ID: \(bigIntId)")
 
-                
+                // Insert UUID and BIGINT mapping into the `user_mapping` table
+                try await insertUserMapping(uuid: userId, bigIntId: bigIntId)
+
                 // Navigate based on the selected role
                 if role == "Teacher" {
                     navigateToTeacherDashboard = true
                 } else if role == "Student" {
                     navigateToStudentDashboard = true
                 }
-                
+
                 // Clear sign-up inputs
                 self.signupUsername = ""
                 self.signUpEmail = ""
                 self.signUpPassword = ""
-                    
-                completion(true)
 
+                completion(true)
             } catch {
                 self.error = error.localizedDescription
                 print("Sign up failed: \(error.localizedDescription)")
@@ -172,8 +206,8 @@ final class AuthViewModel: ObservableObject {
             }
         }
     }
-    
-    
+
+
     @MainActor
     func signOut() {
         Task {
@@ -188,57 +222,60 @@ final class AuthViewModel: ObservableObject {
                 self.shouldNavigateToDashboard = false
                 self.navigateToTeacherDashboard = false
                 self.navigateToStudentDashboard = false
-                self.shouldNavigateToRoleSelection = false
                 self.selectedRole = nil
                 
-                // Optionally, clear any other session-related data or views
+                // Navigate to role selection
+                self.shouldNavigateToRoleSelection = true // This will trigger the view to switch
+                
             } catch {
                 print("Sign out failed: \(error.localizedDescription)")
             }
         }
     }
     
-    
-    // Fetch user role from the database
-    func fetchUserRole(email: String) async throws -> String? {
-        struct UserResponse: Codable {
-            let role_id: Int
-        }
-
-        // Fetch role from the 'users' table
-        let response = try await client
-            .from("users")
-            .select("role_id")
-            .eq("email", value: email)
-            .single()
-            .execute()
-
-        // Check if the response contains data
-        if response.data.isEmpty {
-            print("No data found for email: \(email)")
-            return nil
-        }
-
-        // Decode the user response directly from the Data
-        let userResponse = try JSONDecoder().decode(UserResponse.self, from: response.data)
-
-        // Return the role based on the role_id
-        switch userResponse.role_id {
-            case 1:
-                return "Teacher"
-            case 2:
-                return "Student"
-            default:
-                print("Unknown role ID: \(userResponse.role_id)")
-                return nil
-        }
+    enum UserRoleFetchError: Error {
+        case noDataFound
+        case unknownRole
+        case decodingError(Error)
     }
     
-   
-}
+    
+    // Fetch user role from the database
+       func fetchUserRole(email: String) async throws -> String? {
+           struct UserResponse: Codable {
+               let role_id: Int
+           }
+
+           // Fetch role from the 'users' table
+           let response = try await client
+               .from("users")
+               .select("role_id")
+               .eq("email", value: email)
+               .single()
+               .execute()
+
+           // Check if the response contains data
+           if response.data.isEmpty {
+               print("No data found for email: \(email)")
+               return nil
+           }
+
+           // Decode the user response directly from the Data
+           let userResponse = try JSONDecoder().decode(UserResponse.self, from: response.data)
+
+           // Return the role based on the role_id
+           switch userResponse.role_id {
+               case 1:
+                   return "Teacher"
+               case 2:
+                   return "Student"
+               default:
+                   print("Unknown role ID: \(userResponse.role_id)")
+                   return nil
+           }
+       }
+   }
   
-
-
 extension AuthViewModel {
     @MainActor
     func fetchRole(by role: String) async throws {
@@ -285,5 +322,3 @@ extension AuthViewModel {
     
 }
        
-
-

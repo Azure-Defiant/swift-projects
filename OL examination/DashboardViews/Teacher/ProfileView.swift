@@ -96,5 +96,3 @@ struct aboutusview: View {
 #Preview {
     ProfileView()
 }
-
-

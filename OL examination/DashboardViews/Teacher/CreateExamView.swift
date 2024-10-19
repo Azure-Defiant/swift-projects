@@ -12,7 +12,8 @@ struct CreateExamView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
 
-    let supabaseClient = createSupabaseClient()
+    // Create an instance of ExamUploader
+    private let examUploader = ExamUploader()
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -23,12 +24,10 @@ struct CreateExamView: View {
             TextField("Enter exam title", text: $examTitle)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.bottom, 20)
-                .onTapGesture { dismissKeyboard() }
 
             TextField("Enter question", text: $questionText)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.bottom, 10)
-                .onTapGesture { dismissKeyboard() }
 
             Picker("Question Type", selection: $questionType) {
                 Text("Multiple Choice").tag("multiple-choice")
@@ -36,14 +35,12 @@ struct CreateExamView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding(.bottom, 20)
-            .onChange(of: questionType) { _ in dismissKeyboard() }
 
             if questionType == "multiple-choice" {
                 ForEach(0..<4, id: \.self) { index in
                     TextField("Option \(Character(UnicodeScalar(97 + index)!)).", text: $options[index])
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding(.bottom, 5)
-                        .onTapGesture { dismissKeyboard() }
                 }
             }
 
@@ -51,7 +48,6 @@ struct CreateExamView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .textInputAutocapitalization(.never)
                 .padding(.bottom, 10)
-                .onTapGesture { dismissKeyboard() }
 
             Button("Add Question") { addQuestion() }
                 .padding()
@@ -67,10 +63,8 @@ struct CreateExamView: View {
                         Text("Type: \(question.1)")
                         if question.1 == "multiple-choice" {
                             ForEach(question.2.indices, id: \.self) { index in
-                                if !question.2[index].isEmpty {
-                                    Text("Option \(Character(UnicodeScalar(97 + index)!)): \(question.2[index])")
-                                        .font(.subheadline)
-                                }
+                                Text("Option \(Character(UnicodeScalar(97 + index)!)): \(question.2[index])")
+                                    .font(.subheadline)
                             }
                         }
                         Text("Correct Answer: \(question.3)")
@@ -101,8 +95,6 @@ struct CreateExamView: View {
     }
 
     private func addQuestion() {
-        dismissKeyboard()
-
         guard !questionText.isEmpty else {
             alertMessage = "Please enter a question."
             showAlert = true
@@ -116,7 +108,7 @@ struct CreateExamView: View {
                 return
             }
 
-            guard !correctAnswer.isEmpty, "abcd".contains(correctAnswer.lowercased()) else {
+            guard "abcd".contains(correctAnswer.lowercased()) else {
                 alertMessage = "Please enter a valid correct answer (a, b, c, or d)."
                 showAlert = true
                 return
@@ -135,8 +127,6 @@ struct CreateExamView: View {
     }
 
     private func uploadExam() async {
-        dismissKeyboard()
-
         guard !examTitle.isEmpty else {
             alertMessage = "Please enter an exam title."
             showAlert = true
@@ -149,7 +139,7 @@ struct CreateExamView: View {
             return
         }
 
-        guard let email = supabaseClient.auth.currentUser?.email else {
+        guard let email = SupabaseManager.shared.client.auth.currentUser?.email else {
             alertMessage = "You must be logged in to create an exam."
             showAlert = true
             return
@@ -164,7 +154,7 @@ struct CreateExamView: View {
 
             print("Uploading exam with userId: \(authenticatedUserID)")
 
-            await uploadExamToSupabase(
+            await examUploader.uploadExam(
                 title: examTitle,
                 questions: questions,
                 userId: authenticatedUserID
@@ -188,20 +178,17 @@ struct CreateExamView: View {
         }
 
         do {
-            let response = try await supabaseClient
+            // Fetch the data from Supabase
+            let response = try await SupabaseManager.shared.client
                 .from("users")
                 .select("id")
                 .eq("email", value: email)
                 .single()
                 .execute()
 
-            if !response.data.isEmpty {
-                let userData = try JSONDecoder().decode(UserResponse.self, from: response.data)
-                return userData.id
-            } else {
-                print("No user found with email: \(email)")
-                return nil
-            }
+            // No need to unwrap, directly use response.data
+            let userData = try JSONDecoder().decode(UserResponse.self, from: response.data)
+            return userData.id
         } catch {
             print("Error fetching user ID: \(error.localizedDescription)")
             throw error

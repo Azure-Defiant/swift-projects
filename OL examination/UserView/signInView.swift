@@ -42,7 +42,10 @@ struct SignInView: View {
                     .padding(.top, -50)
                 
                 Button(action: {
-                    viewModel.signIn()
+                
+                    Task {
+                         viewModel.signIn()
+                    }
                 }) {
                     Text("Sign In")
                         .font(.custom("Poppins-Bold", size: 16))
