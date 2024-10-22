@@ -1,6 +1,6 @@
 import SwiftUI
 
-// RoleButton Struct
+
 struct RoleButton: View {
     let role: String
     let action: () -> Void
@@ -70,4 +70,9 @@ struct RoleView: View {
         authViewModel.selectedRole = role // Set the selected role
         authViewModel.navigateToSignUp = true // Trigger navigation
     }
+}
+
+
+#Preview{
+    RoleView()
 }

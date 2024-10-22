@@ -11,12 +11,7 @@ struct StudentView: View {
                 }
             
             
-            recordView()
-                .tabItem {
-                    Image(systemName: "doc.plaintext")
-                    Text("Records")
-                }
-            
+       
             // History Tab
             NavigationView {
                 historyView()

@@ -14,7 +14,8 @@ struct Proctorly: App {
     var body: some Scene {
         WindowGroup {
             GetStartedView()
-                .environmentObject(authViewModel) // injected the authviewmodel :)
+                .environmentObject(authViewModel)
+                .environmentObject(ExamViewModel(examId: 123, userId: 456)) // injected the authviewmodel :)
         }
     }
 }

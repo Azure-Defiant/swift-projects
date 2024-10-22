@@ -37,7 +37,7 @@ struct homeView: View {
                     
                     // ScrollView with Exams
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 25) {
                             ForEach(exams) { exam in
                                 NavigationLink(destination: ExamTakingView(examId: exam.id, userId: Int64(authViewModel.userRoleId ?? 0))) { // Provide default userId
                                     DashboardButtonView(label: exam.title, color: .blue)

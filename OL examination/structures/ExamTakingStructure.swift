@@ -11,12 +11,8 @@ import Foundation
 // Models for questions and submissions
 
 
-struct SubmissionInsert: Codable {
-    let user_id: Int64
-    let exam_question_id: Int64
-    let submitted_answer: String
-    let status: String
-}
+
+
 
 // Make sure you have an Exam struct defined
 struct Exam: Identifiable, Codable {
@@ -29,15 +25,13 @@ struct Exam: Identifiable, Codable {
 
 
 // Define the Submission struct
-struct Submission: Codable, Identifiable {
-    let id: Int64
+struct Submission: Codable {
     let user_id: Int64
     let exam_question_id: Int64
-    let submission_date: String?
-    let score: Int?
+    let score: Int
     let status: String
-    let submitted_answer: String?
-    let is_correct: Bool?
+    let submitted_answer: String
+    let is_correct: Bool
 }
 
 
@@ -46,6 +40,7 @@ struct User: Codable {
     let username: String
     let email: String
     let role_id: Int64
-    let created_at: String?  // Optional timestamp if needed
+    let created_at: String?  // time stamp
+
 }
 

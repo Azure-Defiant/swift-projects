@@ -9,7 +9,7 @@ class ExamFunctions {
     
     
     
-    
+}
     /*   // Function to upload an exam and its questions
      func uploadExam(examTitle: String, questions: [(String, String, [String])], createdById: Int) async throws {
      // Step 1: Insert the exam title into the exams table
@@ -36,5 +36,5 @@ class ExamFunctions {
      }
      }
      */
-}
+
     

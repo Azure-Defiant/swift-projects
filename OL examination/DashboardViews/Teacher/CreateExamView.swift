@@ -55,7 +55,6 @@ struct CreateExamView: View {
                 .foregroundColor(.white)
                 .cornerRadius(10)
                 .padding(.bottom, 20)
-
             List {
                 ForEach(questions, id: \.0) { question in
                     VStack(alignment: .leading) {
