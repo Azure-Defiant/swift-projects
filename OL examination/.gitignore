@@ -1,0 +1,12 @@
+# macOS system files
+.DS_Store
+
+# Xcode specific files
+*.xcuserdata
+*.xcuserdatad
+*.xcdebugger
+
+# Ignore build and derived data
+build/
+DerivedData/
+
