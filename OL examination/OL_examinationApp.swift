@@ -15,7 +15,8 @@ struct Proctorly: App {
         WindowGroup {
             GetStartedView()
                 .environmentObject(authViewModel)
-                .environmentObject(ExamViewModel(examId: 123, userId: 456)) // injected the authviewmodel :)
+                .environmentObject(ExamViewModel(examId: 123, userId: 456)) // Works now
+
         }
     }
 }

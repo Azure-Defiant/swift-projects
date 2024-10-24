@@ -3,7 +3,7 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(\.colorScheme) var colorScheme // Access the current color scheme (light/dark)
     @AppStorage("isDarkMode") private var isDarkMode = false // Store user's dark mode preference
-    
+    @StateObject private var authViewModel = AuthViewModel()
     var body: some View {
         NavigationView {
             VStack {
@@ -15,14 +15,14 @@ struct ProfileView: View {
                     .padding(.top, 150)
                 
                 // User Info
-                Text("Josh Smith")
+                Text("Cheese")
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 16)
 
                 HStack(spacing: 40) {
                     Button(action: {
-                        print("Logout tapped")
+                        authViewModel.signOut()
                     }) {
                         VStack {
                             Image(systemName: "power")
@@ -83,7 +83,7 @@ struct aboutusview: View {
                 .fontWeight(.bold)
                 .padding(.top, 100)
             
-            Text("We Build this Proctorly app to make exam easy through online and for the best online examination")
+            Text("Welcome to Proctorly, your trusted partner in revolutionizing the educational experience. Our app is designed to facilitate seamless online examinations, bridging the gap between teachers and students by providing a robust platform for creating, managing, and taking exams. At Proctorly, we are committed to enhancing academic integrity and making the testing process more accessible, efficient, and secure for educational institutions around the world. Join us in embracing the future of education, where technology meets learning.")
                 .multilineTextAlignment(.center)
                 .padding()
             

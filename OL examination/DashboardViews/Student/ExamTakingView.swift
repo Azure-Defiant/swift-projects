@@ -71,31 +71,32 @@ struct ExamTakingView: View {
 }
 
 
+
 struct MultipleChoiceView: View {
-       var question: Question
-       @Binding var selectedAnswers: [Int64: String]
-       
-       var body: some View {
-           VStack(alignment: .leading) {
-               ForEach(question.options, id: \.id) { option in // Use the Answer directly
-                   HStack {
-                       Text(option.answer_option) // Access answer_option from Answer
-                           .padding(.leading, 10)
-                       
-                       Spacer()
-                       
-                       Button(action: {
-                           selectedAnswers[question.id] = option.answer_option // Set selected answer as answer_option
-                       }) {
-                           Image(systemName: selectedAnswers[question.id] == option.answer_option ? "largecircle.fill.circle" : "circle")
-                               .foregroundColor(.blue)
-                       }
-                   }
-                   .padding(10)
-               }
-           }
-       }
-   }
+    var question: Question
+    @Binding var selectedAnswers: [Int64: String]
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            ForEach(question.options, id: \.id) { option in
+                HStack {
+                    Text(option.answer_option)
+                        .padding(.leading, 10)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        selectedAnswers[question.id] = option.answer_option  // Set selected answer
+                    }) {
+                        Image(systemName: selectedAnswers[question.id] == option.answer_option ? "largecircle.fill.circle" : "circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .padding(10)
+            }
+        }
+    }
+}
 
 struct IdentificationView: View {
     var question: Question
@@ -109,8 +110,7 @@ struct IdentificationView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding()
                 .onChange(of: answer) { newValue in
-                    // Update the selected answer in the binding
-                    selectedAnswers[question.id] = newValue
+                    selectedAnswers[question.id] = newValue  // Update selected answer
                 }
         }
         .onAppear {
@@ -120,7 +120,3 @@ struct IdentificationView: View {
     }
 }
 
-
-#Preview {
-    ExamTakingView(examId: 1, userId: 1)
-}

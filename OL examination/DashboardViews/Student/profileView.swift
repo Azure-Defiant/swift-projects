@@ -18,32 +18,14 @@ struct profileView: View {
                     .padding(.top, 150)
                 
                 // User Info
-                Text("Josh Smith") // Replace with dynamic user data if available
+                Text("Cheese")
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 16)
-                
-                Text("josh.smith@example.com") // Replace with dynamic user email
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .padding(.bottom, 30)
-                
+
                 HStack(spacing: 40) {
                     Button(action: {
-                        print("Edit Profile tapped")
-                    }) {
-                        VStack {
-                            Image(systemName: "pencil")
-                                .font(.title)
-                                .foregroundColor(.blue)
-                            Text("Edit")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    Button(action: {
-                        authViewModel.signOut() // Call the sign-out function from AuthViewModel
+                        authViewModel.signOut()
                     }) {
                         VStack {
                             Image(systemName: "power")
@@ -57,13 +39,6 @@ struct profileView: View {
                 }
                 .padding(.top, 20)
                 
-                NavigationLink(destination: AboutUsView()) {
-                    Text("About Us")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                        .padding(.top, 20)
-                }
-                
                 // Dark Mode Toggle
                 Toggle(isOn: $isDarkMode) {
                     Text("Dark Mode")
@@ -73,8 +48,20 @@ struct profileView: View {
                 .onChange(of: isDarkMode) { value in
                     toggleDarkMode()
                 }
+
+                // Spacer for more space before the About Us link
+                Spacer().frame(height: 40) // Add space between the toggle and the About Us link
                 
-                Spacer()
+                // About Us Navigation Link
+                NavigationLink(destination: aboutusview()) {
+                    Text("About Us")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                        .padding(.leading, 20) // Adjusted padding to move the link to the left
+                }
+                .frame(maxWidth: .infinity, alignment: .leading) // Align to the left
+                
+                Spacer() // Add another spacer to push content to the top
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
@@ -86,7 +73,7 @@ struct profileView: View {
     
     // Function to toggle dark/light mode
     private func toggleDarkMode() {
-        // SwiftUI handles this with the .preferredColorScheme() modifier
+        // SwiftUI manages the dark/light mode.
     }
 }
 
@@ -99,7 +86,7 @@ struct AboutUsView: View {
                 .fontWeight(.bold)
                 .padding(.top, 100)
             
-            Text("This is the About Us page. Here you can add information about your app or company.")
+            Text("Welcome to Proctorly, your trusted partner in revolutionizing the educational experience. Our app is designed to facilitate seamless online examinations, bridging the gap between teachers and students by providing a robust platform for creating, managing, and taking exams. At Proctorly, we are committed to enhancing academic integrity and making the testing process more accessible, efficient, and secure for educational institutions around the world. Join us in embracing the future of education, where technology meets learning.")
                 .multilineTextAlignment(.center)
                 .padding()
             
@@ -111,5 +98,5 @@ struct AboutUsView: View {
 
 // Preview
 #Preview {
-    ProfileView()
+    profileView()
 }

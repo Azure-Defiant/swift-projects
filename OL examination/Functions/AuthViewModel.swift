@@ -55,16 +55,17 @@ final class AuthViewModel: ObservableObject {
     
     
     // Insert UUID and BIGINT mapping into `user_mapping` table
-    func insertUserMapping(uuid: String, bigIntId: Int64) async throws {
-        let mappingInsert = MappedUserResponse(uuid: uuid, int_id: bigIntId)
+        func insertUserMapping(uuid: String, bigIntId: Int64) async throws {
+            let mappingInsert = MappedUserResponse(uuid: uuid, int_id: bigIntId)
 
-        let response = try await client
-            .from("user_mapping")
-            .insert(mappingInsert)
-            .execute()
+            let response = try await client
+                .from("user_mapping")
+                .insert(mappingInsert)
+                .execute()
 
-        print("Mapping inserted successfully: \(response)")
-    }
+            print("Mapping inserted successfully: \(response)")
+        }
+
 
     
     // Public function to update the user's role
@@ -103,42 +104,57 @@ final class AuthViewModel: ObservableObject {
     // Async function to handle sign-in
     @MainActor
     func signIn() {
-        Task {
-            do {
-                let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
-                print("Sign in successful: \(session)")
+            Task {
+                do {
+                    let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
+                    print("Sign in successful: \(session)")
 
-                guard let userRole = try await fetchUserRole(email: signInEmail) else {
+                    guard let userRole = try await fetchUserRole(email: signInEmail) else {
+                        DispatchQueue.main.async {
+                            self.error = "No role found for this user or unauthorized access."
+                            self.isLoggedIn = false
+                        }
+                        return
+                    }
+
                     DispatchQueue.main.async {
-                        self.error = "No role found for this user or unauthorized access."
-                        self.isLoggedIn = false
-                    }
-                    return
-                }
+                        self.isLoggedIn = true
+                        // Safely unwrap email using nil coalescing
+                        self.currentUserEmail = session.user.email ?? "No email available"
+                        self.userRole = userRole
 
-                DispatchQueue.main.async {
-                    self.isLoggedIn = true
-                    // Safely unwrap email using nil coalescing
-                    self.currentUserEmail = session.user.email ?? "No email available"
-                    self.userRole = userRole
-
-                    switch userRole {
-                    case "Teacher":
-                        self.navigateToTeacherDashboard = true
-                    case "Student":
-                        self.navigateToStudentDashboard = true
-                    default:
-                        self.error = "Unknown or unauthorized role"
-                        self.isLoggedIn = false
-                        print("Unknown role: \(userRole)")
+                        switch userRole {
+                        case "Teacher":
+                            self.navigateToTeacherDashboard = true
+                        case "Student":
+                            self.navigateToStudentDashboard = true
+                        default:
+                            self.error = "Unknown or unauthorized role"
+                            self.isLoggedIn = false
+                            print("Unknown role: \(userRole)")
+                        }
                     }
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.error = error.localizedDescription
-                    print("Sign in failed: \(error.localizedDescription)")
+                } catch {
+                    DispatchQueue.main.async {
+                        self.error = error.localizedDescription
+                        print("Sign in failed: \(error.localizedDescription)")
+                    }
                 }
             }
+        }
+
+   
+
+    func navigateBasedOnUserRole(userID: Int) {
+        // Fetch or determine user role here
+        // Placeholder logic:
+        switch selectedRole {
+        case "Teacher":
+            navigateToTeacherDashboard = true
+        case "Student":
+            navigateToStudentDashboard = true
+        default:
+            error = "No valid role selected"
         }
     }
 
@@ -148,64 +164,73 @@ final class AuthViewModel: ObservableObject {
         let role_id: Int
     }
     
+    
     @MainActor
     func signUp(role: String, completion: @escaping (Bool) -> Void) {
         print("Selected role before signup: \(role)")
         Task {
             do {
-                // Sign up the user via Supabase Auth and retrieve the UUID
+                // Sign up the user via Supabase Auth
                 let session = try await client.auth.signUp(email: signUpEmail, password: signUpPassword)
                 print("Sign up successful: \(session)")
 
-                let userId = session.user.id.uuidString  // Convert UUID to string immediately after fetching
-                print("User UUID: \(userId)")
-
-                // Fetch the role from the roles table
-                try await fetchRole(by: role)
-
-                guard let roleId = userRoleId else {
-                    print("Failed to retrieve role ID after fetching role")
-                    completion(false)
+                // Assume you already fetch role_id from your roles logic
+                guard let roleId = getRoleId(from: role) else {
+                    print("Role ID not found for the role: \(role)")
+                    DispatchQueue.main.async {
+                        self.error = "Role ID not found."
+                        completion(false)
+                    }
                     return
                 }
 
-                // Insert user into the `users` table (BIGINT ID)
+                // Insert user into the `users` table
                 let newUser = UserInsert(username: signupUsername, email: signUpEmail, role_id: roleId)
-                let userResponse = try await client
+                _ = try await client
                     .from("users")
-                    .insert(newUser)
-                    .select("id") // Get the BIGINT id
-                    .single()
+                    .insert([newUser])
                     .execute()
 
-                // Decode the response to get the BIGINT user ID
-                let userData = try JSONDecoder().decode(MappedUserResponse.self, from: userResponse.data)
-                let bigIntId = userData.int_id
-                print("User inserted successfully with BIGINT ID: \(bigIntId)")
-
-                // Insert UUID and BIGINT mapping into the `user_mapping` table
-                try await insertUserMapping(uuid: userId, bigIntId: bigIntId)
+                print("User inserted successfully with role ID: \(roleId)")
 
                 // Navigate based on the selected role
-                if role == "Teacher" {
-                    navigateToTeacherDashboard = true
-                } else if role == "Student" {
-                    navigateToStudentDashboard = true
+                DispatchQueue.main.async {
+                    self.decideNavigationBasedOn(role: role)
+                    completion(true)
                 }
-
-                // Clear sign-up inputs
-                self.signupUsername = ""
-                self.signUpEmail = ""
-                self.signUpPassword = ""
-
-                completion(true)
             } catch {
-                self.error = error.localizedDescription
-                print("Sign up failed: \(error.localizedDescription)")
-                completion(false)
+                print("Error during sign-up: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.error = error.localizedDescription
+                    completion(false)
+                }
             }
         }
     }
+
+    private func decideNavigationBasedOn(role: String) {
+        switch role {
+        case "Teacher":
+            navigateToTeacherDashboard = true
+        case "Student":
+            navigateToStudentDashboard = true
+        default:
+            error = "No valid role selected"
+        }
+    }
+
+    func getRoleId(from role: String) -> Int? {
+        switch role {
+        case "Teacher":
+            return 1
+        case "Student":
+            return 2
+        default:
+            return nil
+        }
+    }
+
+
 
 
     @MainActor
@@ -309,7 +334,7 @@ extension AuthViewModel {
 }
         
 extension AuthViewModel {
-    func getRoleId(from role: String) -> Int? {
+    func getRoleIdd(from role: String) -> Int? {
         switch role {
         case "Teacher":
             return 1

@@ -1,5 +1,5 @@
 import SwiftUI
-
+// get started view
 struct GetStartedView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var isNavigatingToRoleView: Bool = false // State variable for Role navigation
@@ -48,9 +48,8 @@ struct GetStartedView: View {
               
                         
                         
-                        
                     .frame(width: 300)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold)) 
 
                     // Button to navigate to RoleView
                     Button("Choose Your Role") {
