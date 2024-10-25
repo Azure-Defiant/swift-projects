@@ -14,7 +14,7 @@ struct StudentView: View {
        
             // History Tab
             NavigationView {
-                historyView()
+                HistoryView()
                 .navigationTitle("History")
             }
             .tabItem {

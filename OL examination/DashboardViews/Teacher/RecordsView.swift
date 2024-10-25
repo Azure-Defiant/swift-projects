@@ -1,17 +1,9 @@
 import SwiftUI
 import Supabase
 
-// Model for Exam Submission Data
-struct ExamSubmission: Identifiable, Codable {
-    let id: Int64
-    let username: String
-    let examQuestionId: Int64
-    let submissionDate: Date
-    let score: Int
-    let status: String
-}
 
-// View Model to fetch and manage submissions
+
+// ViewModel to fetch and manage submissions for the teacher's view
 class RecordsViewModel: ObservableObject {
     @Published var submissions: [ExamSubmission] = []
     @Published var isLoading = false
@@ -19,33 +11,35 @@ class RecordsViewModel: ObservableObject {
 
     private let client = SupabaseManager.shared.client
 
+    // Fetch all student submissions for the teacher
     func fetchSubmissions() {
         isLoading = true
         errorMessage = nil
 
         Task {
             do {
-                let response = try await client
-                    .from("submissions")
-                    .select("""
-                    id,
-                    users!inner(username),
-                    exam_question_id,
-                    submission_date,
-                    score,
-                    status
-                    """)
-                    .order("submission_date", ascending: false)
-                    .execute()
+                let sqlQuery = """
+                SELECT 
+                    submissions.id,
+                    users.username,
+                    exam_questions.question_text,
+                    exams.title AS exam_title,
+                    submissions.submission_date,
+                    submissions.score,
+                    submissions.status
+                FROM 
+                    submissions
+                INNER JOIN users ON submissions.user_id = users.id
+                INNER JOIN exam_questions ON submissions.exam_question_id = exam_questions.id
+                INNER JOIN exams ON exam_questions.exam_id = exams.id
+                ORDER BY 
+                    submissions.submission_date DESC;
+                """
 
-                let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                decoder.dateDecodingStrategy = .iso8601
-
-                let decodedSubmissions = try decoder.decode([ExamSubmission].self, from: response.data)
-
+                // Fetch the submissions using the same query method
+                let fetchedSubmissions = try await fetchSubmissions(sqlQuery: sqlQuery)
                 DispatchQueue.main.async {
-                    self.submissions = decodedSubmissions
+                    self.submissions = fetchedSubmissions
                     self.isLoading = false
                 }
             } catch {
@@ -56,22 +50,45 @@ class RecordsViewModel: ObservableObject {
             }
         }
     }
+
+    // Fetch submissions using the raw SQL query via the RPC function
+    private func fetchSubmissions(sqlQuery: String) async throws -> [ExamSubmission] {
+        let response = try await client
+            .rpc("execute_sql", params: ["query": sqlQuery])
+            .execute()
+
+        // Directly access response.data (no need for optional binding)
+        let responseData = response.data
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
+
+        // Decode the responseData into an array of ExamSubmission
+        let submissions = try decoder.decode([ExamSubmission].self, from: responseData)
+        return submissions
+    }
 }
 
-// Main View for Displaying Records
+// Main View for displaying all student exam records for the teacher
 struct RecordsView: View {
     @StateObject private var viewModel = RecordsViewModel()
     @State private var searchText = ""
     @State private var statusFilter: String?
     @State private var sortOrder: SortOrder = .descending
 
+    // Filter and sort submissions based on search text and status
     var filteredSubmissions: [ExamSubmission] {
         viewModel.submissions.filter { submission in
+            // Search based on username
             (searchText.isEmpty || submission.username.localizedCaseInsensitiveContains(searchText)) &&
+            // Filter based on status (if selected)
             (statusFilter == nil || submission.status == statusFilter)
         }
         .sorted {
-            sortOrder == .ascending ? $0.submissionDate < $1.submissionDate : $0.submissionDate > $1.submissionDate
+            // Sort based on the sort order (date ascending/descending)
+            guard let date1 = $0.submissionDate, let date2 = $1.submissionDate else { return false }
+            return sortOrder == .ascending ? date1 < date2 : date1 > date2
         }
     }
 
@@ -82,7 +99,7 @@ struct RecordsView: View {
                     .edgesIgnoringSafeArea(.all)
 
                 VStack(spacing: 16) {
-                    // Search Bar at the top, with padding adjusted to stay at the top
+                    // Search Bar for username
                     SearchBar(text: $searchText)
                         .padding([.horizontal, .top], 16)
 
@@ -93,7 +110,7 @@ struct RecordsView: View {
                     }
                     .padding(.horizontal)
 
-                    // Content in ScrollView
+                    // Display the content in a ScrollView
                     ScrollView {
                         if viewModel.isLoading {
                             ProgressView("Loading submissions...")
@@ -108,6 +125,7 @@ struct RecordsView: View {
                                 .foregroundColor(.gray)
                                 .padding(.top, 50)
                         } else {
+                            // Show filtered submissions
                             VStack(spacing: 16) {
                                 ForEach(filteredSubmissions) { submission in
                                     SubmissionRow(submission: submission)
@@ -122,26 +140,35 @@ struct RecordsView: View {
                     }
                 }
             }
-            .navigationBarTitle("Records", displayMode: .inline)
+            .navigationBarTitle("Student Records", displayMode: .inline)
         }
     }
 }
 
 // Row to display individual submission details
-struct SubmissionRow: View {
+struct SubmissionRows: View {
     let submission: ExamSubmission
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(submission.username)
                 .font(.headline)
-            Text("Exam ID: \(submission.examQuestionId)")
+            Text("Exam Title: \(submission.examTitle)")
                 .font(.subheadline)
-            Text("Score: \(submission.score)")
+            Text("Question: \(submission.questionText)")
+                .font(.subheadline)
+
+            Text("Score: \(submission.score != nil ? "\(submission.score!)" : "N/A")")
             Text("Status: \(submission.status.capitalized)")
                 .foregroundColor(submission.status == "pass" ? .green : .red)
-            Text("Submitted: \(formattedDate(submission.submissionDate))")
-                .font(.caption)
+
+            if let submissionDate = submission.submissionDate, let parsedDate = parseDate(submissionDate) {
+                Text("Submitted: \(formattedDate(parsedDate))")
+                    .font(.caption)
+            } else {
+                Text("Submitted: N/A")
+                    .font(.caption)
+            }
         }
         .padding()
         .background(Color(.systemGray5))
@@ -154,6 +181,11 @@ struct SubmissionRow: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func parseDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: dateString)
     }
 }
 
