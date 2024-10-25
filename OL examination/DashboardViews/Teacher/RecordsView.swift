@@ -146,7 +146,7 @@ struct RecordsView: View {
 }
 
 // Row to display individual submission details
-struct SubmissionRows: View {
+struct SubmissionRow: View {
     let submission: ExamSubmission
 
     var body: some View {

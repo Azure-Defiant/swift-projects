@@ -7,11 +7,11 @@ struct ExamSubmission: Identifiable, Codable {
     let username: String
     let questionText: String
     let examTitle: String
-    let submissionDate: String? // Treating this as a string since it's returned as a string from the database
+    let submissionDate: String?
     let score: Int?
     let status: String
-    
-    // Coding keys to map JSON fields to Swift property names
+    let correctAnswer: String
+
     enum ExamCodingKeys: String, CodingKey {
         case id
         case username
@@ -20,48 +20,44 @@ struct ExamSubmission: Identifiable, Codable {
         case submissionDate = "submission_date"
         case score
         case status
+        case correctAnswer = "correct_answer"
     }
 }
 
+struct UserIdResponse: Codable {
+    let id: Int64
+}
+
+
+// ViewModel to manage exam history data
 class HistoryViewModel: ObservableObject {
-    @Published var submissions: [ExamSubmission] = []
+    @Published var submissionsByExam: [String: [ExamSubmission]] = [:]
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+
     private let client = SupabaseManager.shared.client
-    
-    // Load submissions dynamically from Supabase
+
+    // Load submissions for a specific user
     func loadSubmissions(userId: Int64) {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
-                // Construct the raw SQL query
-                let sqlQuery = """
-                SELECT 
-                    submissions.id,
-                    users.username,
-                    exam_questions.question_text,
-                    exams.title AS exam_title,
-                    submissions.submission_date,
-                    submissions.score,
-                    submissions.status
-                FROM 
-                    submissions
-                INNER JOIN users ON submissions.user_id = users.id
-                INNER JOIN exam_questions ON submissions.exam_question_id = exam_questions.id
-                INNER JOIN exams ON exam_questions.exam_id = exams.id
-                WHERE 
-                    submissions.user_id = \(userId)
-                ORDER BY 
-                    submissions.submission_date DESC;
-                """
+                let response = try await client
+                    .rpc("get_user_submissions", params: ["user_id_param": userId])
+                    .execute()
 
-                // Call the actual data fetching method using 'rpc' to execute raw SQL
-                let fetchedSubmissions = try await fetchSubmissions(sqlQuery: sqlQuery)
+                let responseData = response.data
+
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let fetchedSubmissions = try decoder.decode([ExamSubmission].self, from: responseData)
+
+                let grouped = Dictionary(grouping: fetchedSubmissions, by: { $0.examTitle })
+
                 DispatchQueue.main.async {
-                    self.submissions = fetchedSubmissions
+                    self.submissionsByExam = grouped
                     self.isLoading = false
                 }
             } catch {
@@ -72,66 +68,49 @@ class HistoryViewModel: ObservableObject {
             }
         }
     }
-    private func fetchSubmissions(sqlQuery: String) async throws -> [ExamSubmission] {
-        let response = try await client
-            .rpc("execute_sql", params: ["query": sqlQuery])
-            .execute()
 
-        // Directly access response.data since it's not optional in your Supabase client version
-        let responseData = response.data
-
-        print("Raw response data (JSON): \(String(data: responseData, encoding: .utf8) ?? "No data")")
-
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
-        // Since submissionDate is treated as a string in the model, no need for custom date decoding
-        do {
-            let submissions = try decoder.decode([ExamSubmission].self, from: responseData)
-            return submissions
-        } catch let decodingError as DecodingError {
-            print("Decoding Error: \(decodingError.localizedDescription)")
-            throw decodingError
-        } catch {
-            print("General Error: \(error.localizedDescription)")
-            throw error
-        }
-    }
 }
 
-// HistoryView struct should be outside the ViewModel
+// Main History View
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
-    
+    @State private var selectedExam: String? = nil
+
     var body: some View {
-        VStack {
-            if viewModel.isLoading {
-                ProgressView("Loading submissions...")
-            } else if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-            } else if !viewModel.submissions.isEmpty {
-                List(viewModel.submissions) { submission in
-                    SubmissionRow(submission: submission) // Using a separate row component for cleanliness
+        NavigationView {
+            VStack {
+                if viewModel.isLoading {
+                    ProgressView("Loading submissions...")
+                } else if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage).foregroundColor(.red)
+                } else {
+                    List {
+                        ForEach(viewModel.submissionsByExam.keys.sorted(), id: \.self) { examTitle in
+                            NavigationLink(
+                                destination: QuestionListView(
+                                    examTitle: examTitle,
+                                    submissions: viewModel.submissionsByExam[examTitle] ?? []
+                                )
+                            ) {
+                                ExamRow(examTitle: examTitle, submissions: viewModel.submissionsByExam[examTitle] ?? [])
+                            }
+                        }
+                    }
                 }
-            } else {
-                Text("No submissions found.")
+            }
+            .navigationTitle("Exam History")
+            .onAppear {
+                fetchUserIdFromUsersTable()
             }
         }
-        .onAppear {
-            // Fetch the userId from the 'users' table
-            fetchUserIdFromUsersTable()
-        }
     }
-    
+
     private func fetchUserIdFromUsersTable() {
         Task {
             do {
                 if let email = SupabaseManager.shared.client.auth.currentUser?.email {
-                    // Query the 'users' table using email to get the userId
                     let userId = try await fetchUserIdByEmail(email: email)
                     if let userId = userId {
-                        // Once you have the userId, load the submissions
                         viewModel.loadSubmissions(userId: userId)
                     } else {
                         viewModel.errorMessage = "User ID not found in users table."
@@ -144,11 +123,7 @@ struct HistoryView: View {
             }
         }
     }
-    
-    struct UserIdResponse: Codable {
-        let id: Int64
-    }
-    
+
     private func fetchUserIdByEmail(email: String) async throws -> Int64? {
         let response = try await SupabaseManager.shared.client
             .from("users")
@@ -157,38 +132,67 @@ struct HistoryView: View {
             .single()
             .execute()
         
-        print("Response data: \(String(data: response.data, encoding: .utf8) ?? "No data")")
-        
         let userIdResponse = try JSONDecoder().decode(UserIdResponse.self, from: response.data)
         return userIdResponse.id
     }
 }
 
+// Row showing the Exam Title and Overall Status
+struct ExamRow: View {
+    let examTitle: String
+    let submissions: [ExamSubmission]
 
-// Row to display individual submission details
-struct SubmissionRow: View {
+    var body: some View {
+        HStack {
+            Text(examTitle).font(.headline)
+            Spacer()
+            Text(overallStatus())
+                .foregroundColor(overallStatus() == "Pass" ? .green : .red)
+        }
+    }
+
+    private func overallStatus() -> String {
+        let correctCount = submissions.filter { $0.score == 1 }.count
+        return correctCount == submissions.count ? "Pass" : "Fail"
+    }
+}
+
+// List of Questions for Selected Exam
+struct QuestionListView: View {
+    let examTitle: String
+    let submissions: [ExamSubmission]
+
+    var body: some View {
+        List {
+            ForEach(submissions) { submission in
+                QuestionRow(submission: submission)
+            }
+        }
+        .navigationTitle(examTitle)
+    }
+}
+
+struct QuestionRow: View {
     let submission: ExamSubmission
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(submission.username)
-                .font(.headline)
-            Text("Exam Title: \(submission.examTitle)")
-                .font(.subheadline)
+            // Display the question text
             Text("Question: \(submission.questionText)")
                 .font(.subheadline)
-
-            // Handle optional score
-            if let score = submission.score {
-                Text("Score: \(score)")
-            } else {
-                Text("Score: N/A")
+            
+            // Display if the user's answer was correct or wrong
+            Text("Your Answer: \(submission.status == "pass" ? "Correct" : "Wrong")")
+                .foregroundColor(submission.status == "pass" ? .green : .red)
+            
+            // If the answer was wrong, display the correct answer
+            if submission.status == "fail" {
+                Text("Correct Answer: \(submission.correctAnswer)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
 
-            Text("Status: \(submission.status.capitalized)")
-                .foregroundColor(submission.status == "pass" ? .green : .red)
-
-            // Safely parse the submissionDate string to Date
+            // Handle and display the submission date
             if let submissionDateString = submission.submissionDate,
                let submissionDate = parseDate(submissionDateString) {
                 Text("Submitted: \(formattedDate(submissionDate))")
@@ -218,8 +222,6 @@ struct SubmissionRow: View {
         return formatter.string(from: date)
     }
 }
-
-
 
 
 struct HistoryView_Previews: PreviewProvider {
