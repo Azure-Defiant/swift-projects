@@ -31,14 +31,14 @@ struct Student: Identifiable, Codable {
 }
 
 struct StudentExamRecord: Identifiable, Codable {
-    var id: Int64?
+    var id = UUID()
     var examTitle: String?
     var totalScore: Int?
     var status: String
     var submissionDate: String?
 
     enum CodingKeys: String, CodingKey {
-        case id = "exam_id"
+       // case id = "exam_id"
         case examTitle = "exam_title"
         case totalScore = "total_score"
         case status
@@ -85,35 +85,40 @@ class RecordsViewModel: ObservableObject {
     }
 
     func fetchAllStudents() {
-        isLoading = true
-        Task {
-            do {
-                self.students = try await fetchStudents()
-                isLoading = false
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = "Failed to fetch students: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
-            }
-        }
-    }
+           isLoading = true
+           Task {
+               do {
+                   self.students = try await fetchStudents()
+                   DispatchQueue.main.async {
+                       self.isLoading = false // Ensure this is on the main thread
+                   }
+               } catch {
+                   DispatchQueue.main.async {
+                       self.errorMessage = "Failed to fetch students: \(error.localizedDescription)"
+                       self.isLoading = false
+                   }
+               }
+           }
+       }
 
     func fetchStudentExamRecords(studentId: Int64, completion: @escaping () -> Void) {
-        isLoading = true
-        Task {
-            do {
-                self.examRecords = try await fetchExamRecords(studentId: studentId)
-                isLoading = false
-                completion()
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = "Failed to fetch exam records: \(error.localizedDescription)"
-                    self.isLoading = false
+            DispatchQueue.main.async { self.isLoading = true }
+            examRecords = [] // Clear records before fetching
+            Task {
+                do {
+                    self.examRecords = try await fetchExamRecords(studentId: studentId)
+                    DispatchQueue.main.async {
+                        self.isLoading = false // Stop loading after fetch
+                        completion()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.errorMessage = "Failed to fetch exam records: \(error.localizedDescription)"
+                        self.isLoading = false
+                    }
                 }
             }
         }
-    }
 
     private func fetchStudents() async throws -> [Student] {
         let response = try await client.rpc("get_all_students").execute()
@@ -179,10 +184,9 @@ struct RecordsView: View {
             List(filteredStudents) { student in
                 Button(action: {
                     selectedStudent = student
-                    isExamRecordsViewActive = false // Reset the navigation state
+                    isExamRecordsViewActive = false // Reset navigation state
                     viewModel.fetchStudentExamRecords(studentId: student.id) {
-                        // Set the navigation state to true after fetching records
-                        isExamRecordsViewActive = true
+                        isExamRecordsViewActive = true // Trigger navigation after records are fetched
                     }
                 }) {
                     Text(student.username)
@@ -196,7 +200,7 @@ struct RecordsView: View {
             .onAppear(perform: viewModel.fetchAllStudents)
             .background(
                 NavigationLink(
-                    destination: ExamRecordsView(student: selectedStudent, records: viewModel.examRecords),
+                    destination: ExamRecordsView(student: selectedStudent, viewModel: viewModel),
                     isActive: $isExamRecordsViewActive
                 ) {
                     EmptyView()
@@ -218,15 +222,15 @@ struct RecordsView: View {
 
 struct ExamRecordsView: View {
     let student: Student?
-    let records: [StudentExamRecord]
-
+    @ObservedObject var viewModel: RecordsViewModel
+    
     var body: some View {
         VStack {
             if let student = student {
                 Text("\(student.username)'s Records").font(.headline)
             }
             
-            List(records) { record in
+            List(viewModel.examRecords) { record in
                 VStack(alignment: .leading) {
                     Text("Exam Title: \(record.examTitle ?? "Not Available")").font(.headline)
                     Text("Total Score: \(record.totalScore ?? 0)")
@@ -236,10 +240,11 @@ struct ExamRecordsView: View {
                 .padding()
             }
         }
-       
+        .navigationBarTitle("\(student?.username ?? "Student")'s Records", displayMode: .inline)
     }
 }
 
+// Make sure viewModel is updated before navigating, so it displays all exam records properly.
 struct RecordsView_Previews: PreviewProvider {
     static var previews: some View {
         RecordsView()
