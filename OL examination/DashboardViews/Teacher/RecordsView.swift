@@ -56,20 +56,21 @@ class RecordsViewModel: ObservableObject {
     private let client = SupabaseManager.shared.client
     private let decoder = JSONDecoder()
 
-   
     init() {
-           decoder.keyDecodingStrategy = .custom { keys in
-               guard let lastKey = keys.last else {
-                   fatalError("No keys in the decoding context")
-               }
-               print("Attempting to decode key: \(lastKey.stringValue)") // Debug print to see what keys are being processed
-               if lastKey.stringValue == "student_id" || lastKey.stringValue == "exam_id" {
-                   return AnyKey(stringValue: lastKey.stringValue)
-               }
-               let adjustedKey = lastKey.stringValue.convertedFromSnakeCaseToCamelCase()
-               return AnyKey(stringValue: adjustedKey)
-           }
-       }
+         decoder.keyDecodingStrategy = .custom { keys in
+             guard let lastKey = keys.last else { return AnyKey(stringValue: "") }
+             print("Attempting to decode key: \(lastKey.stringValue)") // Debugging print
+
+             // Directly return known keys without modification
+             if lastKey.stringValue == "student_id" || lastKey.stringValue == "exam_id" || lastKey.stringValue == "exam_title" || lastKey.stringValue == "total_score" || lastKey.stringValue == "submission_date" {
+                 return AnyKey(stringValue: lastKey.stringValue)
+             }
+
+             // Otherwise, convert from snake_case to camelCase
+             let adjustedKey = lastKey.stringValue.convertedFromSnakeCaseToCamelCase()
+             return AnyKey(stringValue: adjustedKey)
+         }
+     }
 
        private struct AnyKey: CodingKey {
            var stringValue: String
@@ -121,6 +122,9 @@ class RecordsViewModel: ObservableObject {
         print("Debug: Raw server response for fetchStudents - \(String(describing: String(data: response.data, encoding: .utf8)))")
         do {
             let students = try decoder.decode([Student].self, from: response.data)
+            
+            print("Decoded Exam Records: \(students)")
+            
             return students
         } catch {
             print("Decoding Error: \(error)")
@@ -134,6 +138,10 @@ class RecordsViewModel: ObservableObject {
         print("Debug: Raw server response for fetchExamRecords - \(String(describing: String(data: response.data, encoding: .utf8)))")
         do {
             let records = try decoder.decode([StudentExamRecord].self, from: response.data)
+            
+            // Print out the records to confirm decoding
+            print("Decoded Exam Records: \(records)")
+            
             return records
         } catch {
             print("Decoding Error: \(error)")
@@ -141,6 +149,7 @@ class RecordsViewModel: ObservableObject {
             throw error
         }
     }
+
 
     func printDecodingError(_ error: DecodingError) {
         switch error {
@@ -165,6 +174,8 @@ class RecordsViewModel: ObservableObject {
 struct RecordsView: View {
     @StateObject private var viewModel = RecordsViewModel()
     @State private var searchText = ""
+    @State private var selectedStudent: Student?
+    @State private var isExamRecordsViewActive = false
 
     var filteredStudents: [Student] {
         viewModel.students.filter { searchText.isEmpty || $0.username.localizedCaseInsensitiveContains(searchText) }
@@ -197,20 +208,26 @@ struct RecordsView: View {
 }
 
 struct ExamRecordsView: View {
-    let student: Student
+    let student: Student?
     let records: [StudentExamRecord]
 
     var body: some View {
-        List(records) { record in
-            VStack(alignment: .leading) {
-                Text("Exam Title: \(record.examTitle ?? "Not Available")").font(.headline)
-                Text("Total Score: \(record.totalScore ?? 0)")
-                Text("Status: \(record.status)").foregroundColor(record.status == "Pass" ? .green : .red)
-                Text("Submission Date: \(record.submissionDate ?? "N/A")").font(.caption)
+        VStack {
+            if let student = student {
+                Text("\(student.username)'s Records").font(.headline)
             }
-            .padding()
+            
+            List(records) { record in
+                VStack(alignment: .leading) {
+                    Text("Exam Title: \(record.examTitle ?? "Not Available")").font(.headline)
+                    Text("Total Score: \(record.totalScore ?? 0)")
+                    Text("Status: \(record.status)").foregroundColor(record.status == "Pass" ? .green : .red)
+                    Text("Submission Date: \(record.submissionDate ?? "N/A")").font(.caption)
+                }
+                .padding()
+            }
         }
-        .navigationBarTitle("\(student.username)'s Records", displayMode: .inline)
+        .navigationBarTitle("\(student?.username ?? "Student")'s Records", displayMode: .inline)
     }
 }
 
