@@ -2,7 +2,6 @@ import SwiftUI
 import Combine
 import Foundation
 
-
 extension String {
     func convertedFromSnakeCaseToCamelCase() -> String {
         let items = self.split(separator: "_")
@@ -57,35 +56,33 @@ class RecordsViewModel: ObservableObject {
     private let decoder = JSONDecoder()
 
     init() {
-         decoder.keyDecodingStrategy = .custom { keys in
-             guard let lastKey = keys.last else { return AnyKey(stringValue: "") }
-             print("Attempting to decode key: \(lastKey.stringValue)") // Debugging print
+        decoder.keyDecodingStrategy = .custom { keys in
+            guard let lastKey = keys.last else { return AnyKey(stringValue: "") }
+            print("Attempting to decode key: \(lastKey.stringValue)")
 
-             // Directly return known keys without modification
-             if lastKey.stringValue == "student_id" || lastKey.stringValue == "exam_id" || lastKey.stringValue == "exam_title" || lastKey.stringValue == "total_score" || lastKey.stringValue == "submission_date" {
-                 return AnyKey(stringValue: lastKey.stringValue)
-             }
+            if lastKey.stringValue == "student_id" || lastKey.stringValue == "exam_id" || lastKey.stringValue == "exam_title" || lastKey.stringValue == "total_score" || lastKey.stringValue == "submission_date" {
+                return AnyKey(stringValue: lastKey.stringValue)
+            }
 
-             // Otherwise, convert from snake_case to camelCase
-             let adjustedKey = lastKey.stringValue.convertedFromSnakeCaseToCamelCase()
-             return AnyKey(stringValue: adjustedKey)
-         }
-     }
+            let adjustedKey = lastKey.stringValue.convertedFromSnakeCaseToCamelCase()
+            return AnyKey(stringValue: adjustedKey)
+        }
+    }
 
-       private struct AnyKey: CodingKey {
-           var stringValue: String
-           var intValue: Int?
+    private struct AnyKey: CodingKey {
+        var stringValue: String
+        var intValue: Int?
 
-           init(stringValue: String) {
-               self.stringValue = stringValue
-               self.intValue = nil
-           }
+        init(stringValue: String) {
+            self.stringValue = stringValue
+            self.intValue = nil
+        }
 
-           init(intValue: Int) {
-               self.stringValue = String(intValue)
-               self.intValue = intValue
-           }
-       }
+        init(intValue: Int) {
+            self.stringValue = String(intValue)
+            self.intValue = intValue
+        }
+    }
 
     func fetchAllStudents() {
         isLoading = true
@@ -102,12 +99,13 @@ class RecordsViewModel: ObservableObject {
         }
     }
 
-    func fetchStudentExamRecords(studentId: Int64) {
+    func fetchStudentExamRecords(studentId: Int64, completion: @escaping () -> Void) {
         isLoading = true
         Task {
             do {
                 self.examRecords = try await fetchExamRecords(studentId: studentId)
                 isLoading = false
+                completion()
             } catch {
                 DispatchQueue.main.async {
                     self.errorMessage = "Failed to fetch exam records: \(error.localizedDescription)"
@@ -122,9 +120,7 @@ class RecordsViewModel: ObservableObject {
         print("Debug: Raw server response for fetchStudents - \(String(describing: String(data: response.data, encoding: .utf8)))")
         do {
             let students = try decoder.decode([Student].self, from: response.data)
-            
-            print("Decoded Exam Records: \(students)")
-            
+            print("Decoded Students: \(students)")
             return students
         } catch {
             print("Decoding Error: \(error)")
@@ -138,10 +134,7 @@ class RecordsViewModel: ObservableObject {
         print("Debug: Raw server response for fetchExamRecords - \(String(describing: String(data: response.data, encoding: .utf8)))")
         do {
             let records = try decoder.decode([StudentExamRecord].self, from: response.data)
-            
-            // Print out the records to confirm decoding
             print("Decoded Exam Records: \(records)")
-            
             return records
         } catch {
             print("Decoding Error: \(error)")
@@ -149,7 +142,6 @@ class RecordsViewModel: ObservableObject {
             throw error
         }
     }
-
 
     func printDecodingError(_ error: DecodingError) {
         switch error {
@@ -171,6 +163,7 @@ class RecordsViewModel: ObservableObject {
     }
 }
 
+
 struct RecordsView: View {
     @StateObject private var viewModel = RecordsViewModel()
     @State private var searchText = ""
@@ -184,7 +177,14 @@ struct RecordsView: View {
     var body: some View {
         NavigationView {
             List(filteredStudents) { student in
-                Button(action: { viewModel.fetchStudentExamRecords(studentId: student.id) }) {
+                Button(action: {
+                    selectedStudent = student
+                    isExamRecordsViewActive = false // Reset the navigation state
+                    viewModel.fetchStudentExamRecords(studentId: student.id) {
+                        // Set the navigation state to true after fetching records
+                        isExamRecordsViewActive = true
+                    }
+                }) {
                     Text(student.username)
                         .font(.headline)
                         .padding()
@@ -194,6 +194,15 @@ struct RecordsView: View {
             .overlay(loadingOverlay)
             .navigationTitle("Student Records")
             .onAppear(perform: viewModel.fetchAllStudents)
+            .background(
+                NavigationLink(
+                    destination: ExamRecordsView(student: selectedStudent, records: viewModel.examRecords),
+                    isActive: $isExamRecordsViewActive
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            )
         }
     }
 
@@ -227,7 +236,7 @@ struct ExamRecordsView: View {
                 .padding()
             }
         }
-        .navigationBarTitle("\(student?.username ?? "Student")'s Records", displayMode: .inline)
+       
     }
 }
 
