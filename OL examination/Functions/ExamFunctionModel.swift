@@ -30,6 +30,7 @@ struct Answer: Codable, Identifiable {
 
 @MainActor
 class ExamViewModel: ObservableObject {
+    private let examHide: ExamHide
     @Published var questions: [Question] = []
     @Published var selectedAnswers: [Int64: String] = [:]
     @Published var isSubmitted = false
@@ -40,10 +41,13 @@ class ExamViewModel: ObservableObject {
     let examId: Int64
     let userId: Int64
     
-    init(examId: Int64, userId: Int64) {
+    init(examId: Int64, userId: Int64, examHide: ExamHide) {
         self.examId = examId
         self.userId = userId
+        self.examHide = examHide
     }
+    
+    
     
     
     // New method: loadExamQuestions
@@ -95,6 +99,10 @@ class ExamViewModel: ObservableObject {
                    self.finalScore = score
                    self.finalStatus = status
                    self.isSubmitted = true
+                   
+                   // Mark exam as submitted in ExamHide
+                   self.examHide.markExamAsSubmitted(examId: self.examId)
+            
                }
            } catch {
                DispatchQueue.main.async {

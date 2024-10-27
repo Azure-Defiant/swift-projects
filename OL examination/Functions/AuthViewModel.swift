@@ -31,12 +31,12 @@ final class AuthViewModel: ObservableObject {
         @Published var navigateToTeacherDashboard: Bool = false
         @Published var navigateToStudentDashboard: Bool = false
         @Published private var shouldHideBackButton = false
+    
+    
+       
+      
         
-    
 
-    
-    
-    
     private let client = SupabaseManager.shared.client
     
     

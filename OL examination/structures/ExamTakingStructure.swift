@@ -44,3 +44,15 @@ struct User: Codable {
 
 }
 
+
+
+class ExamHide: ObservableObject {
+    @Published var submittedExamIds: Set<Int64> = []  // Track submitted exams for the user
+
+    // Function to update submitted exams
+    func markExamAsSubmitted(examId: Int64) {
+        submittedExamIds.insert(examId)
+    }
+}
+
+

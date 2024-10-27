@@ -4,11 +4,12 @@ import Supabase
 struct homeView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var exams: [Exam] = []
+    @StateObject private var examHide = ExamHide()  // Initialize ExamHide here
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color(UIColor.systemBackground) // This will automatically adapt to light or dark mode
+                Color(UIColor.systemBackground) // Adapts to light or dark mode
                     .ignoresSafeArea()
                 
                 VStack {
@@ -17,16 +18,16 @@ struct homeView: View {
                         Image(systemName: "person.circle.fill")
                             .resizable()
                             .frame(width: 80, height: 80)
-                            .foregroundColor(.gray) // Consider changing if needed in dark mode
+                            .foregroundColor(.gray)
                         
                         VStack(alignment: .leading) {
-                            Text("Welcome,Josh!")
+                            Text("Welcome, Josh!")
                                 .font(.title)
                                 .bold()
                             
                             Text("Student Exam Portal")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary) // Adjusts for light and dark mode
+                                .foregroundColor(.secondary)
                         }
                         .padding(.leading, 10)
                         
@@ -34,10 +35,15 @@ struct homeView: View {
                     }
                     .padding()
                     
+                    // Display filtered exams
                     ScrollView {
                         VStack(spacing: 25) {
-                            ForEach(exams) { exam in
-                                NavigationLink(destination: ExamTakingView(examId: exam.id, userId: Int64(authViewModel.userRoleId ?? 0))) {
+                            ForEach(filteredExams) { exam in  // Use filteredExams here
+                                NavigationLink(destination: ExamTakingView(
+                                    examId: exam.id,
+                                    userId: Int64(authViewModel.userRoleId ?? 0),
+                                    examHide: examHide
+                                )) {
                                     DashboardButtonView(label: exam.title)
                                 }
                             }
@@ -54,7 +60,11 @@ struct homeView: View {
         }
     }
     
-    
+    // Computed property to filter out submitted exams
+    private var filteredExams: [Exam] {
+        exams.filter { !examHide.submittedExamIds.contains($0.id) }
+    }
+
     private func fetchExams() {
         let supabaseClient = SupabaseManager.shared.client
         
@@ -66,42 +76,37 @@ struct homeView: View {
                     .select("*")
                     .execute()
                 
-                
                 let data = response.data
-                
                 
                 if let jsonData = String(data: data, encoding: .utf8) {
                     print("Raw JSON data: \(jsonData)")
                 }
-                
                 
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 
                 let decodedExams = try decoder.decode([Exam].self, from: data)
                 
-                
                 self.exams = decodedExams
                 
             } catch {
-                // Handle any errors during the async operation
                 print("Error fetching exams: \(error.localizedDescription)")
             }
         }
     }
 }
 
-
+// Button view for each exam
 struct DashboardButtonView: View {
     let label: String
 
     var body: some View {
         Text(label)
             .font(.headline)
-            .foregroundColor(.primary) // Use primary to automatically adjust text color based on the theme
+            .foregroundColor(.primary)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color(UIColor.secondarySystemBackground)) // A lighter background for both modes
+            .background(Color(UIColor.secondarySystemBackground))
             .cornerRadius(10)
             .shadow(color: .gray, radius: 3, x: 0, y: 2)
             .overlay(
@@ -110,7 +115,6 @@ struct DashboardButtonView: View {
             )
     }
 }
-
 
 struct Home_Previews: PreviewProvider {
     static var previews: some View {
