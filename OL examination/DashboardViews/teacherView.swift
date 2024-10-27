@@ -19,7 +19,7 @@ struct TeacherView: View {
                     }
                 
                 // History Tab
-            historyView()
+                TeacehrHistoryView()
                     .tabItem {
                         Image(systemName: "clock.fill")
                         Text("History")

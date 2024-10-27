@@ -7,12 +7,12 @@
 
 import SwiftUI
 
-struct historyView: View {
+struct TeacehrHistoryView: View {
     var body: some View {
         Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
     }
 }
 
 #Preview {
-    historyView()
+    TeacehrHistoryView()
 }
