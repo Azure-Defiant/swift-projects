@@ -7,15 +7,19 @@ final class AuthViewModel: ObservableObject {
         @Published var signInEmail: String = ""
         @Published var signInPassword: String = ""
         @Published var currentUserEmail: String = ""
+        @Published var username: String = ""
+
 
         // Properties for sign-up
         @Published var signupUsername: String = ""
         @Published var signUpEmail: String = ""
         @Published var signUpPassword: String = ""
 
-        // Common properties
+        // Session control properties
         @Published var error: String?
         @Published var isLoggedIn = false
+        @Published var shouldNavigateToGetStarted = false
+
         @Published var userRole: String? = nil
     
         @Published var selectedRole: String?
@@ -23,6 +27,12 @@ final class AuthViewModel: ObservableObject {
         @Published var userRoleId: Int?
       
         @Published var navigateToSignUp: Bool = false
+        
+        
+        @Published var isNavigatingToSignInView = false
+        @Published var isNavigatingToRoleView = false
+    
+    
         @Published var shouldNavigateToDashboard: Bool = false
         @Published var selectedDashboard: String? = nil
         @Published var shouldNavigateToRoleSelection: Bool = false
@@ -104,46 +114,88 @@ final class AuthViewModel: ObservableObject {
     // Async function to handle sign-in
     @MainActor
     func signIn() {
-            Task {
-                do {
-                    let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
-                    print("Sign in successful: \(session)")
+        Task {
+            do {
+                let session = try await client.auth.signIn(email: signInEmail, password: signInPassword)
+                print("Sign in successful: \(session)")
 
-                    guard let userRole = try await fetchUserRole(email: signInEmail) else {
-                        DispatchQueue.main.async {
-                            self.error = "No role found for this user or unauthorized access."
-                            self.isLoggedIn = false
-                        }
-                        return
-                    }
+                self.currentUserEmail = session.user.email ?? "No email available"
+                print("Email set during sign-in: \(self.currentUserEmail)")
 
-                    DispatchQueue.main.async {
-                        self.isLoggedIn = true
-                        // Safely unwrap email using nil coalescing
-                        self.currentUserEmail = session.user.email ?? "No email available"
-                        self.userRole = userRole
+                guard let userRole = try await fetchUserRole(email: self.currentUserEmail),
+                      let fetchedUsername = try await fetchUsername(email: self.currentUserEmail) else {
+                    self.error = "No role or username found for this user."
+                    self.isLoggedIn = false
+                    return
+                }
 
-                        switch userRole {
-                        case "Teacher":
-                            self.navigateToTeacherDashboard = true
-                        case "Student":
-                            self.navigateToStudentDashboard = true
-                        default:
-                            self.error = "Unknown or unauthorized role"
-                            self.isLoggedIn = false
-                            print("Unknown role: \(userRole)")
-                        }
+                DispatchQueue.main.async {
+                    self.isLoggedIn = true
+                    self.userRole = userRole
+                    self.username = fetchedUsername
+                    print("Fetched username after sign-in: \(fetchedUsername)")
+
+                    switch userRole {
+                    case "Teacher":
+                        self.navigateToTeacherDashboard = true
+                    case "Student":
+                        self.navigateToStudentDashboard = true
+                    default:
+                        self.error = "Unknown or unauthorized role"
+                        self.isLoggedIn = false
                     }
-                } catch {
-                    DispatchQueue.main.async {
-                        self.error = error.localizedDescription
-                        print("Sign in failed: \(error.localizedDescription)")
-                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.error = error.localizedDescription
+                    print("Sign in failed: \(error.localizedDescription)")
                 }
             }
         }
+    }
 
-   
+
+    // Define User struct to match the JSON response
+    struct User: Codable {
+        let username: String
+    }
+    
+    
+    // Fetch username based on the authenticated user's email
+    @MainActor
+    func fetchUsername(email: String) async throws -> String? {
+        guard !email.isEmpty else {
+            print("No email provided for fetching username.")
+            return nil
+        }
+
+        print("Fetching username for email: \(email)")
+
+        let response = try await client
+            .from("users")
+            .select("username")
+            .eq("email", value: email)
+            .single()
+            .execute()
+
+        // Check if the response data is empty
+        if !response.data.isEmpty {
+            do {
+                let user = try JSONDecoder().decode(User.self, from: response.data)
+                print("Fetched username: \(user.username)")
+                return user.username
+            } catch {
+                print("Error decoding user data: \(error)")
+                return nil
+            }
+        } else {
+            print("No data found for email: \(email)")
+            return nil
+        }
+    }
+
+
+
 
     func navigateBasedOnUserRole(userID: Int) {
         // Fetch or determine user role here
@@ -165,48 +217,50 @@ final class AuthViewModel: ObservableObject {
     }
     
     
+    // Sign up function with username and email storage
     @MainActor
     func signUp(role: String, completion: @escaping (Bool) -> Void) {
         print("Selected role before signup: \(role)")
         Task {
             do {
-                // Sign up the user via Supabase Auth
                 let session = try await client.auth.signUp(email: signUpEmail, password: signUpPassword)
                 print("Sign up successful: \(session)")
 
-                // Assume you already fetch role_id from your roles logic
+                // Set `currentUserEmail` immediately
+                self.currentUserEmail = signUpEmail
+                print("Email set during sign-up: \(self.currentUserEmail)")
+
                 guard let roleId = getRoleId(from: role) else {
-                    print("Role ID not found for the role: \(role)")
-                    DispatchQueue.main.async {
-                        self.error = "Role ID not found."
-                        completion(false)
-                    }
+                    self.error = "Role ID not found."
+                    completion(false)
                     return
                 }
 
-                // Insert user into the `users` table
                 let newUser = UserInsert(username: signupUsername, email: signUpEmail, role_id: roleId)
-                _ = try await client
-                    .from("users")
-                    .insert([newUser])
-                    .execute()
-
+                _ = try await client.from("users").insert([newUser]).execute()
                 print("User inserted successfully with role ID: \(roleId)")
 
-                // Navigate based on the selected role
-                DispatchQueue.main.async {
-                    self.decideNavigationBasedOn(role: role)
-                    completion(true)
+                // Immediately fetch the username after sign-up
+                if let fetchedUsername = try await fetchUsername(email: self.currentUserEmail) {  // Correctly pass the email
+                    self.username = fetchedUsername
+                    print("Fetched username after signup: \(fetchedUsername)")
+                } else {
+                    print("Failed to fetch username after signup.")
                 }
+
+                self.decideNavigationBasedOn(role: role)
+                completion(true)
             } catch {
                 print("Error during sign-up: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.error = error.localizedDescription
-                    completion(false)
-                }
+                self.error = error.localizedDescription
+                completion(false)
             }
         }
     }
+
+
+
+
 
     private func decideNavigationBasedOn(role: String) {
         switch role {
@@ -232,31 +286,34 @@ final class AuthViewModel: ObservableObject {
 
 
 
-
+   //function for signing out of the user
     @MainActor
-    func signOut() {
-        Task {
-            do {
-                try await client.auth.signOut()
-                print("Sign out successful")
-                
-                // Reset session-related properties
-                self.isLoggedIn = false
-                self.userRole = nil
-                self.currentUserEmail = ""
-                self.shouldNavigateToDashboard = false
-                self.navigateToTeacherDashboard = false
-                self.navigateToStudentDashboard = false
-                self.selectedRole = nil
-                
-                // Navigate to role selection
-                self.shouldNavigateToRoleSelection = true // This will trigger the view to switch
-                
-            } catch {
-                print("Sign out failed: \(error.localizedDescription)")
-            }
+    func signOut() async {
+        do {
+            try await client.auth.signOut()
+            print("Sign out successful")
+
+            // Set the navigation flag for GetStartedView first
+            self.shouldNavigateToGetStarted = true
+
+            // Reset all other flags in a synchronous, immediate manner
+            self.isLoggedIn = false
+            self.userRole = nil
+            //self.currentUserEmail = ""
+            self.selectedRole = nil
+            self.shouldNavigateToDashboard = false
+            self.navigateToTeacherDashboard = false
+            self.navigateToStudentDashboard = false
+            self.isNavigatingToSignInView = false
+            self.navigateToSignUp = false
+            self.shouldNavigateToRoleSelection = false
+            self.isNavigatingToRoleView = false
+        } catch {
+            print("Sign out failed: \(error.localizedDescription)")
         }
     }
+
+    
     
     enum UserRoleFetchError: Error {
         case noDataFound

@@ -1,9 +1,7 @@
 import SwiftUI
-// get started view
+
 struct GetStartedView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var isNavigatingToRoleView: Bool = false // State variable for Role navigation
-    @State private var isNavigatingToSignInView: Bool = false // State variable for Sign In navigation
 
     var body: some View {
         NavigationView {
@@ -18,42 +16,38 @@ struct GetStartedView: View {
                         .frame(width: 400, height: 400)
                         .padding(.top, 20)
 
-                    Text("Your journey to secure, seamless, and efficient online examinations starts here. Get ready to experience a new standard in testing, where integrity meets innovation.")
+                    Text("Your journey to secure, seamless, and efficient online examinations starts here.")
                         .multilineTextAlignment(.center)
                         .padding(.top, -60)
                         .frame(width: 300)
                         .font(.system(size: 16, weight: .semibold))
 
-                    Text("Do you already have an account? Click Sign In")
+                    Text("Already have an account? Click Sign In")
                         .multilineTextAlignment(.center)
                         .padding(.top, 10)
                         .frame(width: 400)
                         .font(.system(size: 14, weight: .semibold))
-
+                    
                     Spacer()
 
-                    // Button to navigate to SignInView
+                    // Sign In Button
                     Button("Sign In") {
-                        isNavigatingToSignInView = true
+                        authViewModel.isNavigatingToSignInView = true
                     }
                     .foregroundColor(.white)
                     .frame(width: 200, height: 60)
                     .background(Color.black.opacity(0.8))
                     .cornerRadius(20)
-                    .padding(.top, -240)
+                    .padding(.top, -260)
 
                     Text("Choose your Role to Create an account")
                         .multilineTextAlignment(.center)
+                        .font(.system(size: 14, weight: .semibold))
                         .padding(.top, -160)
-              
-                        
-                        
-                    .frame(width: 300)
-                        .font(.system(size: 14, weight: .semibold)) 
 
-                    // Button to navigate to RoleView
+                    // Role Selection Button
                     Button("Choose Your Role") {
-                        isNavigatingToRoleView = true
+                        authViewModel.isNavigatingToRoleView = true
                     }
                     .foregroundColor(.white)
                     .frame(width: 200, height: 60)
@@ -64,25 +58,37 @@ struct GetStartedView: View {
             }
             .navigationBarHidden(true)
             .background(
-                // NavigationLink to RoleView based on the state
+                // NavigationLink to RoleView
                 NavigationLink(
                     destination: RoleView(),
-                    isActive: $isNavigatingToRoleView,
-                    label: {
-                        EmptyView() // Hidden NavigationLink for RoleView
-                    }
+                    isActive: $authViewModel.isNavigatingToRoleView, // Updated binding
+                    label: { EmptyView() }
                 )
             )
             .background(
-                // NavigationLink to SignInView based on the state
+                // NavigationLink to SignInView
                 NavigationLink(
-                    destination: SignInView(), // Change this to your actual SignInView
-                    isActive: $isNavigatingToSignInView,
-                    label: {
-                        EmptyView() // Hidden NavigationLink for SignInView
-                    }
+                    destination: SignInView(),
+                    isActive: $authViewModel.isNavigatingToSignInView,
+                    label: { EmptyView() }
                 )
             )
+            .onAppear {
+                if authViewModel.shouldNavigateToGetStarted {
+                print("Navigating to GetStartedView")
+                authViewModel.shouldNavigateToGetStarted = false
+
+                DispatchQueue.main.async {
+                authViewModel.navigateToSignUp = false
+                authViewModel.isNavigatingToSignInView = false
+                authViewModel.isNavigatingToRoleView = false
+                authViewModel.shouldNavigateToRoleSelection = false
+                authViewModel.shouldNavigateToDashboard = false
+                authViewModel.navigateToTeacherDashboard = false
+                authViewModel.navigateToStudentDashboard = false
+                 }
+              }
+           }
         }
     }
 }

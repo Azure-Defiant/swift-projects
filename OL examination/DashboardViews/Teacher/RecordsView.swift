@@ -38,7 +38,7 @@ struct StudentExamRecord: Identifiable, Codable {
     var submissionDate: String?
 
     enum CodingKeys: String, CodingKey {
-       // case id = "exam_id"
+      //  case id = "exam_id"
         case examTitle = "exam_title"
         case totalScore = "total_score"
         case status
@@ -46,6 +46,7 @@ struct StudentExamRecord: Identifiable, Codable {
     }
 }
 
+@MainActor
 class RecordsViewModel: ObservableObject {
     @Published var students: [Student] = []
     @Published var examRecords: [StudentExamRecord] = []
@@ -168,7 +169,7 @@ class RecordsViewModel: ObservableObject {
     }
 }
 
-
+// exam records view
 struct RecordsView: View {
     @StateObject private var viewModel = RecordsViewModel()
     @State private var searchText = ""
@@ -220,6 +221,8 @@ struct RecordsView: View {
     }
 }
 
+// exam view records
+
 struct ExamRecordsView: View {
     let student: Student?
     @ObservedObject var viewModel: RecordsViewModel
@@ -250,3 +253,4 @@ struct RecordsView_Previews: PreviewProvider {
         RecordsView()
     }
 }
+

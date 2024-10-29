@@ -44,20 +44,19 @@ class HistoryViewModel: ObservableObject {
 
         Task {
             do {
-                let response = try await client
-                    .rpc("get_user_submissions", params: ["user_id_param": userId])
-                    .execute()
-
+                let response = try await client.rpc("get_user_submissions", params: ["user_id_param": userId]).execute()
                 let responseData = response.data
-
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let fetchedSubmissions = try decoder.decode([ExamSubmission].self, from: responseData)
-
                 let grouped = Dictionary(grouping: fetchedSubmissions, by: { $0.examTitle })
 
                 DispatchQueue.main.async {
                     self.submissionsByExam = grouped
+                    self.submissionsByExam.forEach { examTitle, submissions in
+                        let status = self.calculatePassFailStatus(submissions: submissions)
+                        print("\(examTitle): \(status)")  // This prints pass/fail status for each exam
+                    }
                     self.isLoading = false
                 }
             } catch {
@@ -69,7 +68,17 @@ class HistoryViewModel: ObservableObject {
         }
     }
 
+    
+    func calculatePassFailStatus(submissions: [ExamSubmission]) -> String {
+        let totalScore = submissions.reduce(0) { $0 + ($1.score ?? 0) }
+        let totalPossible = submissions.count
+        let passThreshold = totalPossible * 5 / 10 // Assuming pass at 50%
+        return totalScore >= passThreshold ? "Pass" : "Fail"
+    }
+    
 }
+
+
 
 // Main History View
 struct HistoryView: View {
@@ -150,7 +159,7 @@ struct ExamRow: View {
                 .foregroundColor(overallStatus() == "Pass" ? .green : .red)
         }
     }
-
+ // OVERALL STATUS
     private func overallStatus() -> String {
         let correctCount = submissions.filter { $0.score == 1 }.count
         return correctCount == submissions.count ? "Pass" : "Fail"
@@ -198,7 +207,7 @@ struct QuestionRow: View {
                 Text("Submitted: \(formattedDate(submissionDate))")
                     .font(.caption)
             } else {
-                Text("Submitted: N/A")
+                Text("Status: Submitted")
                     .font(.caption)
             }
         }
@@ -222,6 +231,10 @@ struct QuestionRow: View {
         return formatter.string(from: date)
     }
 }
+
+
+
+
 
 
 struct HistoryView_Previews: PreviewProvider {

@@ -4,12 +4,12 @@ struct profileView: View {
     @Environment(\.colorScheme) var colorScheme // Access the current color scheme (light/dark)
     @AppStorage("isDarkMode") private var isDarkMode = false // Store user's dark mode preference
     
-    // Inject AuthViewModel into the view
-    @StateObject private var authViewModel = AuthViewModel()
-    
+    @EnvironmentObject var authViewModel: AuthViewModel // Use EnvironmentObject
+
     var body: some View {
         NavigationView {
             VStack {
+                
                 // Profile Image
                 Image(systemName: "person.circle.fill")
                     .resizable()
@@ -18,14 +18,17 @@ struct profileView: View {
                     .padding(.top, 150)
                 
                 // User Info
-                Text("Cheese")
+                
+                Text(authViewModel.username.isEmpty ? "Student" : authViewModel.username)
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 16)
-
+                
                 HStack(spacing: 40) {
                     Button(action: {
-                        authViewModel.signOut()
+                        Task {
+                            await authViewModel.signOut() // Run the async function inside Task
+                        }
                     }) {
                         VStack {
                             Image(systemName: "power")
@@ -38,6 +41,14 @@ struct profileView: View {
                     }
                 }
                 .padding(.top, 20)
+
+                // NavigationLink to trigger navigation to GetStartedView upon sign out
+                NavigationLink(
+                    destination: GetStartedView(),
+                    isActive: $authViewModel.shouldNavigateToGetStarted
+                ) {
+                    EmptyView()
+                }
                 
                 // Dark Mode Toggle
                 Toggle(isOn: $isDarkMode) {
@@ -49,26 +60,25 @@ struct profileView: View {
                     toggleDarkMode()
                 }
 
-                // Spacer for more space before the About Us link
-                Spacer().frame(height: 40) // Add space between the toggle and the About Us link
+                Spacer().frame(height: 40)
                 
                 // About Us Navigation Link
-                NavigationLink(destination: aboutusview()) {
+                NavigationLink(destination: AboutUsView()) {
                     Text("About Us")
                         .font(.headline)
                         .foregroundColor(.blue)
-                        .padding(.leading, 20) // Adjusted padding to move the link to the left
+                        .padding(.leading, 20)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading) // Align to the left
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Spacer() // Add another spacer to push content to the top
+                Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
             .edgesIgnoringSafeArea(.all)
             .navigationBarTitle("Profile", displayMode: .inline)
         }
-        .preferredColorScheme(isDarkMode ? .dark : .light) // Manage color scheme with SwiftUI
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
     
     // Function to toggle dark/light mode
@@ -96,7 +106,7 @@ struct AboutUsView: View {
     }
 }
 
-// Preview
 #Preview {
     profileView()
+        .environmentObject(AuthViewModel())
 }

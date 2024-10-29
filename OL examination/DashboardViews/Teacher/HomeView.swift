@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isShowingCreateExamView = false
-    var userName: String = "User"
+    @EnvironmentObject var authViewModel: AuthViewModel 
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -14,7 +14,8 @@ struct HomeView: View {
                         .foregroundColor(.gray)
                     
                     VStack(alignment: .leading) {
-                        Text("Welcome, \(userName)!")
+                       
+                        Text("Welcome, \(authViewModel.username)")
                             .font(.title)
                             .bold()
                         
@@ -25,6 +26,16 @@ struct HomeView: View {
                     .padding(.leading, 10)
                     
                     Spacer()
+                }
+                .onAppear {
+                    // Try fetching username if it is empty
+                    Task {
+                         if authViewModel.username.isEmpty {
+                            print("Attempting to fetch username on homeView appear")
+                            authViewModel.username = (try? await authViewModel.fetchUsername(email: authViewModel.currentUserEmail)) ?? "Teacher"
+                            print("Fetched username on appear: \(authViewModel.username)")
+                        }
+                    }
                 }
                 .padding(.top, 40)
                 .padding(.leading, 20)
@@ -58,4 +69,5 @@ struct HomeView: View {
 
 #Preview{
     HomeView()
+        .environmentObject(AuthViewModel())
 }

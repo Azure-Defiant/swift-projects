@@ -21,7 +21,8 @@ struct homeView: View {
                             .foregroundColor(.gray)
                         
                         VStack(alignment: .leading) {
-                            Text("Welcome, Josh!")
+                           
+                            Text("Welcome, \(authViewModel.username)")
                                 .font(.title)
                                 .bold()
                             
@@ -32,6 +33,16 @@ struct homeView: View {
                         .padding(.leading, 10)
                         
                         Spacer()
+                    }
+                    .onAppear {
+                        // Try fetching username if it is empty
+                        Task {
+                             if authViewModel.username.isEmpty {
+                                print("Attempting to fetch username on homeView appear")
+                                authViewModel.username = (try? await authViewModel.fetchUsername(email: authViewModel.currentUserEmail)) ?? "Student"
+                                print("Fetched username on appear: \(authViewModel.username)")
+                            }
+                        }
                     }
                     .padding()
                     

@@ -19,11 +19,11 @@ struct TeacherView: View {
                     }
                 
                 // History Tab
-                TeacehrHistoryView()
+               /* TeacehrHistoryView()
                     .tabItem {
                         Image(systemName: "clock.fill")
                         Text("History")
-                    }
+                    } */
                 
                 // Profile Tab
                 ProfileView()

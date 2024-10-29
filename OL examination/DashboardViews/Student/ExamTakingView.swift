@@ -4,7 +4,6 @@ struct ExamTakingView: View {
     @StateObject private var viewModel: ExamViewModel
     @State private var showConfirmationDialog = false  // State for showing confirmation dialog
 
-    // Accept ExamHide as ObservedObject and initialize ExamViewModel with it
     init(examId: Int64, userId: Int64, examHide: ExamHide) {
         _viewModel = StateObject(wrappedValue: ExamViewModel(examId: examId, userId: userId, examHide: examHide))
     }
@@ -23,6 +22,7 @@ struct ExamTakingView: View {
                     Text("Exam submitted successfully!")
                         .font(.title)
                         .padding()
+                        .foregroundColor(.primary) // Adapts to dark mode
                 } else {
                     examContent
                 }
@@ -53,7 +53,7 @@ struct ExamTakingView: View {
                                 Text(question.questionText)
                                     .font(.headline)
                                     .padding(.bottom, 5)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.primary) // Adapts to dark mode
                                 
                                 if question.questionType == "multiple-choice" {
                                     MultipleChoiceView(question: question, selectedAnswers: $viewModel.selectedAnswers)
@@ -62,9 +62,9 @@ struct ExamTakingView: View {
                                 }
                             }
                             .padding()
-                            .background(Color.white)
+                            .background(Color(UIColor.secondarySystemBackground)) // Adapts to dark mode
                             .cornerRadius(12)
-                            .shadow(color: .gray.opacity(0.3), radius: 5, x: 0, y: 2)
+                            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
                         }
                         .padding(.horizontal)
                     }
@@ -77,6 +77,7 @@ struct ExamTakingView: View {
             } else {
                 Text("Loading questions...")
                     .padding()
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -90,10 +91,10 @@ struct ExamTakingView: View {
                 .bold()
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.blue)
+                .background(Color.accentColor) // System accent color
                 .foregroundColor(.white)
                 .cornerRadius(8)
-                .shadow(color: .blue.opacity(0.4), radius: 5, x: 0, y: 2)
+                .shadow(color: Color.accentColor.opacity(0.4), radius: 5, x: 0, y: 2)
         }
         .padding()
         .alert(isPresented: $showConfirmationDialog) {
@@ -121,6 +122,7 @@ struct MultipleChoiceView: View {
                 HStack {
                     Text(option.answer_option)
                         .padding(.leading, 10)
+                        .foregroundColor(.primary) // Adapts to dark mode
                     
                     Spacer()
                     
@@ -128,13 +130,13 @@ struct MultipleChoiceView: View {
                         selectedAnswers[question.id] = option.answer_option  // Set selected answer
                     }) {
                         Image(systemName: selectedAnswers[question.id] == option.answer_option ? "largecircle.fill.circle" : "circle")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.accentColor) // System accent color
                     }
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(UIColor.secondarySystemBackground)) // Adapts to dark mode
                 .cornerRadius(8)
-                .shadow(color: .gray.opacity(0.3), radius: 3, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                 .padding(.bottom, 5)
             }
         }
@@ -152,9 +154,10 @@ struct IdentificationView: View {
             TextField("Type your answer", text: $answer)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding()
-                .background(Color.white)
+                .background(Color(UIColor.secondarySystemBackground)) // Adapts to dark mode
                 .cornerRadius(8)
-                .shadow(color: .gray.opacity(0.3), radius: 3, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                .foregroundColor(.primary) // Adapts to dark mode
                 .onChange(of: answer) { newValue in
                     selectedAnswers[question.id] = newValue  // Update selected answer
                 }

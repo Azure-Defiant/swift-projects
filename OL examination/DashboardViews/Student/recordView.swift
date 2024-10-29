@@ -92,3 +92,4 @@ struct RecordView_Previews: PreviewProvider {
         recordView()
     }
 }
+
